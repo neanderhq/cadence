@@ -1,0 +1,39 @@
+{
+  "name": "neander-nextjs-starter",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@11.18.0",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "dev": "next dev --hostname 127.0.0.1",
+    "db:dev": "node scripts/db-dev.mjs",
+    "build": "next build && node .neander/prepare-standalone.mjs",
+    "start": "node .next/standalone/server.js",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@better-auth/drizzle-adapter": "1.7.14",
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "@next/env": "16.4.3",
+    "better-auth": "1.7.14",
+    "drizzle-orm": "0.45.2",
+    "next": "16.4.3",
+    "pg": "8.23.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "@types/pg": "8.23.1",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.7",
+    "auth": "1.7.14",
+    "drizzle-kit": "0.31.10",
+    "embedded-postgres": "18.4.0-beta.17",
+    "typescript": "7.0.2"
+  }
+}
