@@ -21,7 +21,6 @@ class StarterEntrypointTests(unittest.TestCase):
             ], capture_output=True, text=True, timeout=30, check=True)
             self.assertEqual(result.stdout, value)
 
-
     def test_unknown_environment_key_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             bundle = Path(tmp) / "environment"
@@ -34,6 +33,7 @@ class StarterEntrypointTests(unittest.TestCase):
             ], capture_output=True, text=True, timeout=30)
             self.assertNotEqual(result.returncode, 0)
             self.assertNotIn("should-not-run", result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()
