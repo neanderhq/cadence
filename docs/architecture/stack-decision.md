@@ -1,7 +1,13 @@
 # Stack decision
 
-Starter: `nextjs` version `1`.
+Content Board uses Next.js and TypeScript with one production container on Cloud
+Run, PostgreSQL through Drizzle, and Better Auth email/password accounts.
 
-One production container on Cloud Run. No database or authentication is installed. Add persistence, typed APIs, and authentication only when requested; preserve the project files after creation.
+The canonical `.neander/compose.yaml` declares managed Neon, the public application
+origin, generated secrets and the `nextjs-drizzle` migration profile. Build and
+startup do not run migrations. All board APIs authorize ownership on the server.
 
-Maintained source examples and exact dependency commands are in `.neander/blocks/`. Add one block only when its capability is requested; strip `.example` while merging into ordinary application files, generate the project lockfile and verify its documented checks. These examples are excluded from the production image until installed.
+The application was exported from Neander project `proj_2c624900b95c` at deployed
+commit `8aac2ab6b2f22987fa5a6150ee60afcc0d8cbe34`. Template publication follows the
+shared Neander contract; consuming its artifacts for project provisioning is a
+separate product integration.

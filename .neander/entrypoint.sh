@@ -8,7 +8,7 @@ if [ -f "$bundle" ]; then
     case "$line" in *=*) ;; *) exit 1 ;; esac
     key=${line%%=*}
     case "$key" in
-      DATABASE_URL|BETTER_AUTH_URL|BETTER_AUTH_SECRET) export "$line" ;;
+      DATABASE_URL|BETTER_AUTH_URL|BETTER_AUTH_SECRET|DEMO_OWNER_PASSWORD) export "$line" ;;
       *) exit 1 ;;
     esac
   done < "$bundle"

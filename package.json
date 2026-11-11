@@ -1,5 +1,5 @@
 {
-  "name": "neander-nextjs-starter",
+  "name": "neander-content-board-template",
   "version": "1.0.0",
   "private": true,
   "packageManager": "pnpm@11.18.0",
@@ -11,7 +11,10 @@
     "db:dev": "node scripts/db-dev.mjs",
     "build": "next build && node .neander/prepare-standalone.mjs",
     "start": "node .next/standalone/server.js",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "test": "node --test scripts/template.test.mjs",
+    "db:seed": "node .neander/seed.mjs",
+    "test:template": "node scripts/verify-template.mjs"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "1.7.14",
@@ -34,6 +37,7 @@
     "auth": "1.7.14",
     "drizzle-kit": "0.31.10",
     "embedded-postgres": "18.4.0-beta.17",
-    "typescript": "7.0.2"
+    "typescript": "7.0.2",
+    "@playwright/test": "1.58.2"
   }
 }
