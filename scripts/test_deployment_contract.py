@@ -15,7 +15,10 @@ class DeploymentExamplesTests(unittest.TestCase):
     def test_installed_recipe_declares_database_and_auth_requirements(self):
         metadata = yaml.safe_load((ROOT / '.neander/compose.yaml').read_text())['x-neander']
         requirements = {item['name']: item for item in metadata['environment']}
-        self.assertEqual(set(requirements), {'DATABASE_URL', 'BETTER_AUTH_URL', 'BETTER_AUTH_SECRET'})
+        self.assertEqual(requirements['DEMO_OWNER_PASSWORD']['source'], 'generated')
+        self.assertIsNone(requirements['DEMO_OWNER_PASSWORD']['provider'])
+        self.assertEqual(requirements['DEMO_OWNER_PASSWORD']['generator'], 'opaque-random')
+        self.assertEqual(set(requirements), {'DATABASE_URL', 'BETTER_AUTH_URL', 'BETTER_AUTH_SECRET', 'DEMO_OWNER_PASSWORD'})
         self.assertEqual(metadata['migration'], 'nextjs-drizzle')
         self.assertEqual(metadata['ingress']['root_probe'], '/api/health')
         self.assertEqual(requirements['DATABASE_URL']['provider'], 'Neon')

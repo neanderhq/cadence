@@ -1,0 +1,160 @@
+{
+  "lists": [
+    "Ideas",
+    "Drafting",
+    "Review",
+    "Ready",
+    "Published"
+  ],
+  "labels": [
+    {
+      "name": "Blog",
+      "color": "#286a59"
+    },
+    {
+      "name": "Social",
+      "color": "#5a62a8"
+    },
+    {
+      "name": "Email",
+      "color": "#9a5a23"
+    },
+    {
+      "name": "Video",
+      "color": "#aa4562"
+    },
+    {
+      "name": "Urgent",
+      "color": "#b33a32"
+    }
+  ],
+  "cards": [
+    {
+      "list": "Ideas",
+      "title": "Map customer stories for the next launch",
+      "dueIn": -3,
+      "labels": [
+        "Blog",
+        "Urgent"
+      ],
+      "checklist": [
+        {
+          "text": "Choose customer interviews",
+          "done": true
+        },
+        {
+          "text": "Confirm launch themes",
+          "done": false
+        }
+      ],
+      "comment": "Let\u2019s lead with the results customers can measure."
+    },
+    {
+      "list": "Ideas",
+      "title": "Plan a helpful holiday email series",
+      "dueIn": 6,
+      "labels": [
+        "Email"
+      ],
+      "checklist": [
+        {
+          "text": "Outline three sends",
+          "done": true
+        },
+        {
+          "text": "Gather seasonal offers",
+          "done": true
+        },
+        {
+          "text": "Review the schedule",
+          "done": false
+        }
+      ]
+    },
+    {
+      "list": "Drafting",
+      "title": "Turn launch notes into a founder post",
+      "dueIn": 2,
+      "labels": [
+        "Social",
+        "Blog"
+      ],
+      "checklist": [
+        {
+          "text": "Draft the opening",
+          "done": true
+        },
+        {
+          "text": "Add product detail",
+          "done": false
+        }
+      ]
+    },
+    {
+      "list": "Drafting",
+      "title": "Write a customer spotlight for Northstar",
+      "dueIn": null,
+      "labels": [
+        "Blog"
+      ]
+    },
+    {
+      "list": "Review",
+      "title": "QA the November newsletter",
+      "dueIn": -1,
+      "labels": [
+        "Email",
+        "Urgent"
+      ],
+      "checklist": [
+        {
+          "text": "Check links",
+          "done": true
+        },
+        {
+          "text": "Proofread subject line",
+          "done": true
+        },
+        {
+          "text": "Test mobile layout",
+          "done": false
+        }
+      ]
+    },
+    {
+      "list": "Ready",
+      "title": "Film a behind-the-scenes short",
+      "dueIn": 10,
+      "labels": [
+        "Video",
+        "Social"
+      ],
+      "checklist": [
+        {
+          "text": "Write shot list",
+          "done": true
+        },
+        {
+          "text": "Book a filming slot",
+          "done": false
+        }
+      ]
+    },
+    {
+      "list": "Published",
+      "title": "Share the October performance recap",
+      "dueIn": null,
+      "labels": [
+        "Blog"
+      ]
+    },
+    {
+      "list": "Published",
+      "title": "Post the community highlights carousel",
+      "dueIn": 13,
+      "labels": [
+        "Social"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+contract_version: 1
+id: content-board
+title: Content Board
+description: Plan marketing content on private boards with draggable cards, labels, due dates, checklists and comments.
+category: Business & Productivity
+best_for: Marketing teams and creators organizing their content pipeline
+features: [Boards and lists, Drag-and-drop cards, Labels and due dates, Checklists, Comments, Search and filters]
+included: [Content planning application, PostgreSQL migrations, Fictional marketing board]
+thumbnail: .neander/thumbnail.png
+commands:
+  install: [pnpm, install, --frozen-lockfile]
+  check: [pnpm, run, check]
+  test: [pnpm, run, test]
+  verify: [pnpm, run, test:template]
+seed:
+  command: [pnpm, run, db:seed]

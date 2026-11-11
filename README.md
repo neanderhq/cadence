@@ -1,20 +1,37 @@
-# Next.js + TypeScript
+# Content Board
 
-Use Node 24 and pnpm 11.18.0. Install dependencies with `pnpm install --frozen-lockfile`. The app uses PostgreSQL and Better Auth email/password accounts. `pnpm check` checks types and `pnpm build` prepares the production standalone output without requiring credentials.
+Use Node 24.22.2 and pnpm 11.18.0. Install dependencies with `pnpm install --frozen-lockfile`. The app uses PostgreSQL and Better Auth email/password accounts. `pnpm check` checks types and `pnpm build` prepares the production standalone output without requiring credentials.
 
-## Phase 1 foundation
+## Application
 
 Better Auth handles email/password signup, login and logout with database-backed sessions. New accounts receive a private `Marketing Content Calendar` with persisted sample lists, labels, cards, checklists and comments; deleting it does not recreate it. The dashboard supports private board creation, renaming and deletion; board pages support persistent card creation and list management, including transactional list reordering. Signed-out visits to private app pages go to `/login`; every workspace API requires a valid session and scopes records through the owner → board → list → card relationship. A foreign or missing resource returns the same `404` response; malformed IDs return `400`. Validation errors use `400` with a readable `error` message; expired API sessions return `401` and the browser client sends the user back to login.
 
 Private data endpoints are under `/api/boards`, `/api/lists`, `/api/cards`, `/api/labels`, `/api/checklist-items` and `/api/comments`. See the route handlers in `app/api/` for supported methods and fields.
 
+## Neander template
+
+This is the Content Board application from Neander production project
+`proj_2c624900b95c`, deployed source commit
+`8aac2ab6b2f22987fa5a6150ee60afcc0d8cbe34`. The initial GitHub commit preserves
+that source; subsequent changes prepare its template contract. No production
+accounts, submissions, databases or credentials are copied.
+
+The template includes five marketing lists, eight fictional cards, labels,
+checklists and a comment. After migrations, `pnpm db:seed` initializes a private
+workspace for `maya.chen@example.invalid` using the deployment-generated
+`DEMO_OWNER_PASSWORD`. Retrieve that value through the project's normal secret
+management, or create your own account using the existing signup flow. There is
+no shared default password. Each new account gets its own private sample board.
+Seed retries preserve edited/deleted content and credentials; they do not reset
+the demo account. See [template onboarding](docs/template-onboarding.md).
+
 ## Local development
 
-Use Node 24.22.1 and pnpm 11.18.0. If they are installed under `~/.neander-tools`, add them to the current shell with `export PATH="$HOME/.neander-tools/bin:$PATH"`. Install dependencies with `pnpm install --frozen-lockfile`.
+Use Node 24.22.2 and pnpm 11.18.0. If they are installed under `~/.neander-tools`, add them to the current shell with `export PATH="$HOME/.neander-tools/bin:$PATH"`. Install dependencies with `pnpm install --frozen-lockfile`.
 
 Copy `.env.example` to gitignored `.env.local` without overwriting an existing file, and set `BETTER_AUTH_SECRET` to a new random 32-byte secret. Start the embedded development database with `pnpm db:dev`; it listens only on `127.0.0.1:55432` and keeps its data in `.dev-db/`. Leave it running in that terminal. In another terminal, apply the committed schema with `node --env-file=.env.local .neander/migrate.mjs`, then launch the app with `pnpm dev` at `http://127.0.0.1:3000` (development also trusts `http://localhost:3000`). Sign up at `/signup`; the private sample board is created for the account. Keep `.dev-db/` to preserve local database data between runs.
 
-Publish uses `.neander/compose.yaml`; it provisions managed Neon for `DATABASE_URL`, the public origin for `BETTER_AUTH_URL`, and a generated `BETTER_AUTH_SECRET`. Production migrations run from the committed Drizzle history before rollout, not at build or startup. Configure the production database before publishing; never use local database credentials in production. `/api/health` remains public. For local production verification, build with `docker build -f .neander/Dockerfile -t my-next-app .` and run with `docker run --rm -p 8080:8080 --env-file .env.local my-next-app`. `public/` and `.next/static` are copied explicitly into the runtime image.
+Publish uses `.neander/compose.yaml`; it provisions managed Neon for `DATABASE_URL`, the public origin for `BETTER_AUTH_URL`, and generated `BETTER_AUTH_SECRET` and `DEMO_OWNER_PASSWORD` values. Production migrations run from the committed Drizzle history before rollout, not at build or startup. Configure the production database before publishing; never use local database credentials in production. `/api/health` remains public. For local production verification, build with `docker build -f .neander/Dockerfile -t my-next-app .` and run with `docker run --rm -p 8080:8080 --env-file .env.local my-next-app`. `public/` and `.next/static` are copied explicitly into the runtime image.
 
 Use server-side runtime environment variables for backend origins and credentials; `NEXT_PUBLIC_*` values are frozen during the build. Keep browser calls relative to `/api`. Never commit `.env` files with credentials. Stack provenance is in `docs/architecture/stack-decision.md`.
 

@@ -5,7 +5,7 @@ import sys
 from urllib.error import HTTPError
 from urllib.request import urlopen
 
-starter = "nextjs"
+starter = "content-board"
 origin, = sys.argv[1:]
 
 
@@ -18,8 +18,8 @@ def get(route):
         return response.status, response.headers.get("Content-Type", ""), response.read()
 
 
-status, mime, body = get("/")
-assert status == 200 and "text/html" in mime and b"Your web app" in body
+status, mime, body = get("/login")
+assert status == 200 and "text/html" in mime and b"Welcome back" in body
 asset = re.search(rb'src="([^"?]+\.js(?:\?[^" ]*)?)"', body)
 assert asset, "The HTML must reference a production JS asset"
 asset_status, asset_mime, _ = get(asset[1].decode())

@@ -1,5 +1,6 @@
 """Verify literal secret handling in the locally built production image."""
 from pathlib import Path
+import os
 import subprocess
 import tempfile
 import unittest
@@ -11,15 +12,28 @@ class StarterEntrypointTests(unittest.TestCase):
         value = "$(touch /tmp/neander-entrypoint-executed) equals= quote'\" # dollar$"
         with tempfile.TemporaryDirectory() as tmp:
             bundle = Path(tmp) / "environment"
-            bundle.write_text(f"SENTINEL={value}\n")
+            bundle.write_text(f"BETTER_AUTH_SECRET={value}\n")
             bundle.chmod(0o644)  # Fake sentinel readable by each non-root image user.
-            command = ["node", "-e", "if(require('fs').existsSync('/tmp/neander-entrypoint-executed'))process.exit(2);process.stdout.write(process.env.SENTINEL)"]
+            command = ["node", "-e", "if(require('fs').existsSync('/tmp/neander-entrypoint-executed'))process.exit(2);process.stdout.write(process.env.BETTER_AUTH_SECRET)"]
             result = subprocess.run([
                 "docker", "run", "--rm", "-v", f"{bundle}:/run/secrets/neander_environment:ro",
-                "neander-starter-nextjs:local", *command,
+                os.environ.get("NEANDER_TEMPLATE_IMAGE", "neander-starter-nextjs:local"), *command,
             ], capture_output=True, text=True, timeout=30, check=True)
             self.assertEqual(result.stdout, value)
 
+
+    def test_unknown_environment_key_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            bundle = Path(tmp) / "environment"
+            bundle.write_text("UNDECLARED_KEY=value\n")
+            bundle.chmod(0o644)
+            result = subprocess.run([
+                "docker", "run", "--rm", "-v", f"{bundle}:/run/secrets/neander_environment:ro",
+                os.environ.get("NEANDER_TEMPLATE_IMAGE", "neander-starter-nextjs:local"),
+                "node", "-e", "process.stdout.write('should-not-run')",
+            ], capture_output=True, text=True, timeout=30)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertNotIn("should-not-run", result.stdout)
 
 if __name__ == "__main__":
     unittest.main()
