@@ -39,5 +39,6 @@
     "embedded-postgres": "18.4.0-beta.17",
     "typescript": "7.0.2",
     "@playwright/test": "1.58.2"
-  }
+  },
+  "license": "MIT"
 }
