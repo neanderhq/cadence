@@ -9,7 +9,7 @@ See the repository README for current local setup and contributor instructions.
 
 ## Source and publication
 
-Source: `neanderhq/content-board-template`. Template ID: `content-board`.
+Source: `neanderhq/cadence`. Template ID: `content-board`.
 The imported baseline is the exact deployed source of Neander project
 `proj_2c624900b95c` at `8aac2ab6b2f22987fa5a6150ee60afcc0d8cbe34`.
 Application UI and ownership behavior are preserved. Only fictional sample data
