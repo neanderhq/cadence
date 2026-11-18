@@ -1,8 +1,15 @@
 # Content Board template
 
+Current release process: this MIT-licensed application runs app checks and builds
+in its own CI. Neander maintainers manually verify and publish template releases
+from private CI; contributors need no private workflow or publishing credentials.
+The workflow pins and publication runs below describe the original onboarding.
+See the repository README for current local setup and contributor instructions.
+
+
 ## Source and publication
 
-Private source: `neanderhq/content-board-template`. Template ID: `content-board`.
+Source: `neanderhq/content-board-template`. Template ID: `content-board`.
 The imported baseline is the exact deployed source of Neander project
 `proj_2c624900b95c` at `8aac2ab6b2f22987fa5a6150ee60afcc0d8cbe34`.
 Application UI and ownership behavior are preserved. Only fictional sample data
