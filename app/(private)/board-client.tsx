@@ -407,7 +407,7 @@ export function BoardClient({ initialBoard, initialArchivedCards }: Props) {
   return (
     <main className="app-main board-page">
       <header className="topbar board-topbar">
-        <div className="board-breadcrumbs"><Link href="/" className="brand"><span className="brand-mark">C</span><span>Content Board</span></Link><span className="breadcrumb-divider">/</span><span className="breadcrumb-current">Boards</span></div>
+        <div className="board-breadcrumbs"><Link href="/" className="brand"><span className="brand-mark">C</span><span>Cadence</span></Link><span className="breadcrumb-divider">/</span><span className="breadcrumb-current">Boards</span></div>
         <div className="topbar-actions"><span className="private-pill"><span /> Private workspace</span><SignOutButton /></div>
       </header>
 

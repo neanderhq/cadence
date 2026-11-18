@@ -1,6 +1,6 @@
 # Stack decision
 
-Content Board uses Next.js and TypeScript with one production container on Cloud
+Cadence uses Next.js and TypeScript with one production container on Cloud
 Run, PostgreSQL through Drizzle, and Better Auth email/password accounts.
 
 The canonical `.neander/compose.yaml` declares managed Neon, the public application

@@ -80,7 +80,7 @@ export function DashboardClient({ initialBoards, userName }: Props) {
     <main className="app-main workspace-page">
       <div className="app-shell">
         <header className="topbar">
-          <Link href="/" className="brand"><span className="brand-mark">C</span><span>Content Board</span></Link>
+          <Link href="/" className="brand"><span className="brand-mark">C</span><span>Cadence</span></Link>
           <div className="topbar-actions"><span className="private-pill"><span /> Private workspace</span><SignOutButton /></div>
         </header>
 
@@ -140,7 +140,7 @@ export function DashboardClient({ initialBoards, userName }: Props) {
           </div>
           {boards.length === 0 && <p className="empty-workspace">No boards yet. Create one to start planning.</p>}
         </section>
-        <footer className="workspace-footer"><span>Small steps make great stories.</span><span>Content Board · Private by design</span></footer>
+        <footer className="workspace-footer"><span>Small steps make great stories.</span><span>Cadence · Private by design</span></footer>
       </div>
     </main>
   );

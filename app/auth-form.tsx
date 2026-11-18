@@ -41,7 +41,7 @@ export function AuthForm({ mode, expired = false }: Props) {
 
   return (
     <main>
-      <p className="eyebrow">Content Board</p>
+      <p className="eyebrow">Cadence</p>
       <h1>{isSignup ? "Create your account" : "Welcome back"}</h1>
       <p>{isSignup ? "Your private workspace is created when you sign up." : "Sign in to open your private workspace."}</p>
       {expired && <p className="error" role="status">Your session expired. Please sign in again.</p>}
@@ -52,7 +52,7 @@ export function AuthForm({ mode, expired = false }: Props) {
         <label>Password<input name="password" type="password" autoComplete={isSignup ? "new-password" : "current-password"} required minLength={isSignup ? 12 : undefined} maxLength={128} /></label>
         <button type="submit" disabled={busy}>{busy ? "Please wait…" : isSignup ? "Create account" : "Sign in"}</button>
       </form>
-      <p>{isSignup ? "Already have an account? " : "New to Content Board? "}<Link href={isSignup ? "/login" : "/signup"}>{isSignup ? "Sign in" : "Create an account"}</Link></p>
+      <p>{isSignup ? "Already have an account? " : "New to Cadence? "}<Link href={isSignup ? "/login" : "/signup"}>{isSignup ? "Sign in" : "Create an account"}</Link></p>
     </main>
   );
 }

@@ -1,10 +1,12 @@
-# Content Board
+# Cadence
 
 A private content-planning board for marketing teams and creators.
 
-**Neander library:** Content Board · **Category:** Marketing
+**Product inspiration:** Trello-inspired boards and cards for content planning, with its own Cadence branding.
 
-![Content Board with fictional sample data](.neander/thumbnail.png)
+**Neander library:** Cadence · **Category:** Marketing
+
+![Cadence with fictional sample data](.neander/thumbnail.png)
 
 ## What you can build
 
@@ -15,7 +17,7 @@ A private content-planning board for marketing teams and creators.
 
 ## How this fits into Neander
 
-This is the open-source app behind Neander’s **Content Board** starter. You can
+This is the open-source app behind Neander’s **Cadence** starter. You can
 run and modify it on its own without a Neander account, or use it as a starting
 point in Neander.
 
@@ -41,8 +43,8 @@ PostgreSQL service.
 ### 1. Install the app
 
 ```sh
-git clone https://github.com/neanderhq/content-board-template.git
-cd content-board-template
+git clone https://github.com/neanderhq/cadence.git
+cd cadence
 pnpm install --frozen-lockfile
 cp .env.example .env.local
 ```
@@ -50,7 +52,7 @@ cp .env.example .env.local
 ### 2. Start local PostgreSQL
 
 ```sh
-PGPORT=55434 docker compose -p content-board-dev -f compose.dev.yaml up -d --wait
+PGPORT=55434 docker compose -p cadence-dev -f compose.dev.yaml up -d --wait
 ```
 
 The example database URL uses port `55434`. The Compose project name keeps
