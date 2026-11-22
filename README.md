@@ -151,3 +151,7 @@ Originally built by Ibrahim on Neander.
 
 [MIT](LICENSE). Third-party components retain their respective licenses and
 existing attribution notices.
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for private vulnerability reporting and the automated security checks.
