@@ -14,7 +14,10 @@
     "check": "tsc --noEmit",
     "test": "node --test scripts/template.test.mjs",
     "db:seed": "node .neander/seed.mjs",
-    "test:template": "node scripts/verify-template.mjs"
+    "test:template": "node scripts/verify-template.mjs",
+    "test:policy": "python3 scripts/check_repository.py",
+    "verify": "pnpm run check && pnpm run test && pnpm run test:policy && pnpm run build",
+    "test:production": "node scripts/verify-template.mjs"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "1.7.14",
