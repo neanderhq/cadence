@@ -21,7 +21,7 @@ button { color: inherit; }
 button:disabled { cursor: not-allowed; opacity: .55; }
 input { width: 100%; min-height: 43px; padding: .65rem .8rem; border: 1px solid #cbd5cd; border-radius: 9px; color: var(--ink); background: #fff; }
 input::placeholder { color: #87918a; }
-input:focus-visible, button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px solid #9ac8aa; outline-offset: 2px; }
+input:focus-visible, textarea:focus-visible, select:focus-visible, button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px solid #397557; outline-offset: 2px; }
 button { cursor: pointer; }
 h1, h2, h3, p { margin-top: 0; }
 
@@ -166,6 +166,7 @@ main:not(.app-main) button:hover, .button-primary:hover, .button-small:hover { b
 .add-card-form { display: grid; flex: 0 0 auto; gap: .38rem; padding: 0 8px 8px; }
 .add-card-form input { min-height: 37px; padding: .45rem .6rem; border-color: transparent; background: #f9faf8; font-size: .79rem; }
 .add-card-form input:focus { border-color: #bdcfc1; background: #fff; }
+input[aria-invalid="true"], .add-card-form input[aria-invalid="true"], .card-dialog textarea[aria-invalid="true"] { border-color: #a33730; background: #fff7f5; }
 .add-card-button { min-height: 33px; padding: .35rem .55rem; border: 0; border-radius: 7px; color: #68766c; background: transparent; text-align: left; font-size: .78rem; font-weight: 650; }
 .add-card-button:hover { color: var(--green); background: #e2e9e2; }
 .field-error { color: #9c352d; font-size: .72rem; }
@@ -210,14 +211,15 @@ main:not(.app-main) button:hover, .button-primary:hover, .button-small:hover { b
   .create-board-tile form { flex-wrap: wrap; }
   .create-board-tile input { flex: 1 1 150px; }
   .workspace-footer { flex-direction: column; gap: .25rem; }
-  .board-page { min-height: 100vh; height: 100dvh; padding: 0 14px; }
+  .board-page { min-height: 100vh; height: 100dvh; padding: 0 14px; overflow-y: auto; }
   .board-breadcrumbs { gap: .45rem; }
   .breadcrumb-current, .breadcrumb-divider { display: none; }
   .board-heading { align-items: flex-start; flex-direction: column; gap: .85rem; padding: 20px 0 15px; }
   .board-heading h1 { font-size: 1.8rem; }
   .board-heading p:not(.eyebrow) { font-size: .84rem; }
-  .board-heading-actions { width: 100%; justify-content: space-between; }
-  .board-summary { font-size: .78rem; }
+  .board-heading-actions { width: 100%; flex-wrap: wrap; gap: .55rem; }
+  .board-heading-actions .button-small { white-space: nowrap; }
+  .board-summary { flex-basis: 100%; font-size: .78rem; }
   .board-heading-actions .button-primary { min-height: 38px; padding: .48rem .7rem; font-size: .79rem; }
   .board-filters { align-items: stretch; flex-direction: column; gap: .55rem; }
   .filters-toggle { display: inline-flex; min-height: 40px; align-items: center; align-self: flex-start; margin: 0 0 .5rem; padding: .45rem .8rem; border: 1px solid #d5ded5; border-radius: 8px; color: var(--green-dark); background: #fff; font-weight: 700; }
@@ -228,7 +230,7 @@ main:not(.app-main) button:hover, .button-primary:hover, .button-small:hover { b
   .board-search, .due-filter { min-width: 0; }
   .board-label-filters { max-width: 100%; }
   .board-label-filters label { white-space: normal; }
-  .board-scroll { align-self: stretch; scroll-padding-inline: 1px; }
+  .board-scroll { align-self: stretch; min-height: min(340px, 50dvh); scroll-padding-inline: 1px; }
   .list-column { scroll-snap-align: start; }
   .archive-card { align-items: flex-start; flex-direction: column; }
   .archive-card-actions { width: 100%; justify-content: flex-end; }
@@ -264,12 +266,16 @@ main:not(.app-main) button:hover, .button-primary:hover, .button-small:hover { b
 .card-dialog { display: flex; width: min(100%, 720px); max-height: min(90vh, 900px); flex-direction: column; overflow: hidden; border: 1px solid #dfe5df; border-radius: 17px; background: #fff; box-shadow: 0 24px 80px #14231b40; }
 .card-dialog-header { display: flex; min-height: 58px; flex: 0 0 auto; align-items: center; justify-content: space-between; padding: .7rem 1.2rem; border-bottom: 1px solid #e8ece8; }
 .card-dialog-header .eyebrow { margin: 0; }
+.card-dialog-heading-actions { display: flex; align-items: center; gap: .75rem; }
+.card-save-status { color: var(--muted); font-size: .76rem; text-align: right; }
 .card-dialog-header .icon-button { width: 35px; height: 35px; font-size: 1.2rem; }
 .card-dialog-content { display: grid; gap: .58rem; overflow-y: auto; padding: 1.2rem; }
 .detail-loading { padding: 2rem; color: var(--muted); text-align: center; }
 .detail-error { margin: 0; overflow-wrap: anywhere; }
 .detail-field { margin-top: .22rem; color: #66736a; font-size: .76rem; font-weight: 700; }
 .detail-title-field { margin-top: 0; }
+.card-dialog textarea, .card-dialog select, .card-move-form select { min-width: 0; border: 1px solid #cbd5cd; border-radius: 8px; color: var(--ink); background: var(--paper); }
+.detail-title-input { resize: vertical; }
 .detail-title-input { width: 100%; min-height: 48px; padding: .5rem .65rem; font-family: inherit; font-size: 1.25rem; font-weight: 730; letter-spacing: -.025em; }
 .detail-description { width: 100%; min-height: 105px; resize: vertical; padding: .6rem .65rem; font-family: inherit; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
 .detail-section { display: grid; gap: .5rem; padding-top: .8rem; border-top: 1px solid #edf0ed; }
@@ -313,7 +319,6 @@ main:not(.app-main) button:hover, .button-primary:hover, .button-small:hover { b
 .move-card-form select { min-height: 36px; }
 .move-card-form .button-small { min-height: 36px; }
 .card-dialog-footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-top: .75rem; border-top: 1px solid #edf0ed; }
-.card-dialog-footer > span { color: #879289; font-size: .7rem; }
 
 @media (min-width: 621px) {
   .filters-toggle { display: none; }
@@ -344,6 +349,8 @@ input:not([type="checkbox"]), textarea { min-height: 40px; }
   .card-dialog-backdrop { position: fixed; inset: 0; display: block; width: 100vw; min-width: 0; max-width: 100vw; height: 100dvh; overflow: hidden; padding: 0; }
   .card-dialog { width: 100%; min-width: 0; max-width: 100vw; height: 100dvh; max-height: none; margin: 0; border: 0; border-radius: 0; }
   .card-dialog-header { min-height: 62px; padding: .7rem 1rem; }
+  .card-dialog-heading-actions { gap: .55rem; }
+  .card-save-status { max-width: 10rem; }
   .card-dialog-content { gap: .65rem; padding: 1rem; }
   .move-card-form { grid-template-columns: minmax(0, 1fr) 84px; }
   .move-card-form .button-small { grid-column: 1 / -1; }

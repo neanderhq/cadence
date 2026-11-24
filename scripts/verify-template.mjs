@@ -9,6 +9,7 @@ import { randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { chromium, expect } from '@playwright/test';
 import { Client } from 'pg';
+import { verifyCardExperience } from './test-card-experience.mjs';
 import { DEMO_OWNER_ID, DEMO_EMAIL, seed } from '../.neander/seed.mjs';
 
 const exec = promisify(execFile);
@@ -89,6 +90,7 @@ try {
   const ideas = lists.find(list => list.name === 'Ideas');
   const drafting = lists.find(list => list.name === 'Drafting');
   const readyList = lists.find(list => list.name === 'Ready');
+  await verifyCardExperience(browser, context, origin.origin, board, ideas);
   const cards = await json(await context.request.get(`${origin.origin}/api/lists/${ideas.id}/cards`));
   const card = cards[0];
   // Real pointer drag through dnd-kit, with persisted state as the postcondition.

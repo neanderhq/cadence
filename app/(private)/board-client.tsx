@@ -25,6 +25,7 @@ export type BoardColumnView = { id: string; name: string; position: number; card
 export type BoardView = { id: string; name: string; columns: BoardColumnView[] };
 
 type Props = { initialBoard: BoardView; initialArchivedCards: ArchivedCardView[] };
+const CARD_TRIGGER_PREFIX = "open-card-";
 
 type SortableCardProps = {
   card: BoardCardView;
@@ -72,7 +73,7 @@ function SortableCard({ card, column, columns, busy, onOpen, onMove, formatDueDa
         <button className="card-drag-handle" type="button" aria-label={`Drag ${card.title}`} title="Drag to reorder or move" {...attributes} {...listeners}>⠿</button>
         {card.labels.length > 0 && <div className="label-row">{card.labels.map((label) => <span className="label-chip" style={{ backgroundColor: label.color }} key={label.id}>{label.name}</span>)}</div>}
       </div>
-      <button className="task-card-open" type="button" onClick={onOpen}><span className="task-card-title">{card.title}</span>
+      <button id={CARD_TRIGGER_PREFIX + card.id} className="task-card-open" type="button" onClick={onOpen}><span className="task-card-title">{card.title}</span>
         {(due || card.checklistTotal > 0 || card.commentCount > 0) && <span className="card-meta">
           {due && <span className={`due-badge${due.overdue ? " is-overdue" : ""}`}><span aria-hidden="true">◷</span> {due.label}</span>}
           {card.checklistTotal > 0 && <span className="meta-count" aria-label={`${card.checklistDone} of ${card.checklistTotal} checklist items complete`}><span aria-hidden="true">☑</span> {card.checklistDone}/{card.checklistTotal}</span>}
@@ -118,6 +119,7 @@ export function BoardClient({ initialBoard, initialArchivedCards }: Props) {
   const busyRef = useRef(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
+  const boardHeadingRef = useRef<HTMLHeadingElement>(null);
   const [draggingCardId, setDraggingCardId] = useState<string | null>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 7 } }),
@@ -242,15 +244,14 @@ export function BoardClient({ initialBoard, initialArchivedCards }: Props) {
 
   async function addCard(event: FormEvent<HTMLFormElement>, column: BoardColumnView) {
     event.preventDefault();
+    const input = event.currentTarget.querySelector("input");
+    function showError(message: string) {
+      setCardErrors((current) => ({ ...current, [column.id]: message }));
+      input?.focus();
+    }
     const title = (cardDrafts[column.id] ?? "").trim();
-    if (!title) {
-      setCardErrors((current) => ({ ...current, [column.id]: "Card title is required." }));
-      return;
-    }
-    if (title.length > 200) {
-      setCardErrors((current) => ({ ...current, [column.id]: "Card title must be 200 characters or fewer." }));
-      return;
-    }
+    if (!title) return showError("Card title is required.");
+    if (title.length > 200) return showError("Card title must be 200 characters or fewer.");
     if (!startBusy()) return;
     setCardErrors((current) => ({ ...current, [column.id]: "" }));
     setError("");
@@ -259,7 +260,7 @@ export function BoardClient({ initialBoard, initialArchivedCards }: Props) {
       setColumns((current) => current.map((item) => item.id === column.id ? { ...item, cards: [...item.cards, { ...created, labels: [], checklistDone: 0, checklistTotal: 0, commentCount: 0 }] } : item));
       setCardDrafts((current) => ({ ...current, [column.id]: "" }));
     } catch (requestError) {
-      setCardErrors((current) => ({ ...current, [column.id]: requestError instanceof Error ? requestError.message : "We couldn’t add that card." }));
+      showError(requestError instanceof Error ? requestError.message : "We couldn’t add that card.");
     } finally {
       finishBusy();
     }
@@ -320,6 +321,9 @@ export function BoardClient({ initialBoard, initialArchivedCards }: Props) {
       if (card && source) {
         setArchivedCards((current) => [{ ...card, ...updates, listId: source.id, listName: source.name, archivedAt: new Date().toISOString() }, ...current.filter((item) => item.id !== cardId)]);
       }
+    }
+    if (!updates.archived) {
+      setArchivedCards((current) => current.map((card) => card.id === cardId ? { ...card, ...updates } : card));
     }
     setColumns((current) => current.map((column) => ({
       ...column,
@@ -401,6 +405,13 @@ export function BoardClient({ initialBoard, initialArchivedCards }: Props) {
     setDueFilter("");
   }
 
+  function closeCard(cardId: string) {
+    setActiveCardId(null);
+    requestAnimationFrame(() => {
+      (document.getElementById(CARD_TRIGGER_PREFIX + cardId) ?? boardHeadingRef.current)?.focus();
+    });
+  }
+
   const activePosition = activeCardId ? columns.find((column) => column.cards.some((card) => card.id === activeCardId))?.cards.findIndex((card) => card.id === activeCardId) ?? 0 : 0;
   const addListForm = showAddList && <form className="new-list-column" onSubmit={(event) => void addList(event)}><label className="visually-hidden" htmlFor="new-list-name">New list name</label><input id="new-list-name" autoFocus value={newListName} onChange={(event) => setNewListName(event.target.value)} placeholder="Name your list" maxLength={120} required onKeyDown={(event) => { if (event.key === "Escape") setShowAddList(false); }} /><div className="inline-actions"><button className="button-small" type="submit" disabled={busy}>Add list</button><button className="button-quiet" type="button" onClick={() => setShowAddList(false)}>Cancel</button></div></form>;
 
@@ -412,7 +423,7 @@ export function BoardClient({ initialBoard, initialArchivedCards }: Props) {
       </header>
 
       <section className="board-heading">
-        <div><p className="eyebrow">Marketing workspace</p><h1>{archiveView ? "Archive" : board.name}</h1><p>{archiveView ? "Archived cards stay here until they are restored or permanently deleted." : "Plan the work, make room for good ideas, and keep every story moving."}</p></div>
+        <div><p className="eyebrow">Marketing workspace</p><h1 ref={boardHeadingRef} tabIndex={-1}>{archiveView ? "Archive" : board.name}</h1><p>{archiveView ? "Archived cards stay here until they are restored or permanently deleted." : "Plan the work, make room for good ideas, and keep every story moving."}</p></div>
         <div className="board-heading-actions"><span className="board-summary">{archiveView ? `${archivedCards.length} archived ${archivedCards.length === 1 ? "card" : "cards"}` : `${columns.length} ${columns.length === 1 ? "list" : "lists"} · ${matchingCardCount} matching ${matchingCardCount === 1 ? "card" : "cards"}`}</span>{!archiveView && <button className="button-primary" type="button" disabled={busy} onClick={() => setShowAddList((visible) => !visible)}>＋ Add a list</button>}<button className="button-small" type="button" onClick={() => setArchiveView((visible) => !visible)}>{archiveView ? "← Back to board" : `Archive (${archivedCards.length})`}</button></div>
       </section>
 
@@ -459,7 +470,23 @@ export function BoardClient({ initialBoard, initialArchivedCards }: Props) {
                   {column.cards.length === 0 && <span className="empty-drop-hint">{hasFilters && columns[index]?.cards.length ? "No matching cards" : "No cards yet"}</span>}
                 </DroppableCardStack>
 
-                <form className="add-card-form" onSubmit={(event) => void addCard(event, column)}><label className="visually-hidden" htmlFor={`new-card-${column.id}`}>New card title in {column.name}</label><input id={`new-card-${column.id}`} disabled={busy} value={cardDrafts[column.id] ?? ""} onChange={(event) => setCardDrafts((current) => ({ ...current, [column.id]: event.target.value }))} placeholder="Add a card…" />{cardErrors[column.id] && <span className="field-error" role="alert">{cardErrors[column.id]}</span>}<button type="submit" className="add-card-button" disabled={busy}>{busy ? "Saving…" : "＋ Add card"}</button></form>
+                <form className="add-card-form" onSubmit={(event) => void addCard(event, column)}>
+                  <label className="visually-hidden" htmlFor={`new-card-${column.id}`}>New card title in {column.name}</label>
+                  <input
+                    id={`new-card-${column.id}`}
+                    readOnly={busy}
+                    value={cardDrafts[column.id] ?? ""}
+                    aria-invalid={cardErrors[column.id] ? true : undefined}
+                    aria-describedby={cardErrors[column.id] ? `new-card-error-${column.id}` : undefined}
+                    onChange={(event) => {
+                      setCardDrafts((current) => ({ ...current, [column.id]: event.target.value }));
+                      if (cardErrors[column.id]) setCardErrors((current) => ({ ...current, [column.id]: "" }));
+                    }}
+                    placeholder="Add a card…"
+                  />
+                  {cardErrors[column.id] && <span id={`new-card-error-${column.id}`} className="field-error" role="alert">{cardErrors[column.id]}</span>}
+                  <button type="submit" className="add-card-button" disabled={busy}>{busy ? "Saving…" : "＋ Add card"}</button>
+                </form>
               </article>
             ))}
           </DndContext>
@@ -471,7 +498,7 @@ export function BoardClient({ initialBoard, initialArchivedCards }: Props) {
       </>}
       <footer className="board-footer"><span>{draggingCardId ? "Drop the card into another list or position." : "Drag a card to reorder it, or use Move to."}</span><Link href="/">← All boards</Link></footer>
 
-      {activeCardId && <CardDetail key={activeCardId} boardId={board.id} cardId={activeCardId} columns={columns} initialPosition={activePosition} onClose={() => setActiveCardId(null)} onCardChange={updateCardFront} onMove={moveCard} />}
+      {activeCardId && <CardDetail key={activeCardId} boardId={board.id} cardId={activeCardId} columns={columns} initialPosition={activePosition} onClose={() => closeCard(activeCardId)} onCardChange={updateCardFront} onMove={moveCard} />}
     </main>
   );
 }

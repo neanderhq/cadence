@@ -18,7 +18,7 @@ TypeScript is the existing static gate; this migration does not introduce a new 
 
 ## Production smoke coverage
 
-Seeded board/login, pointer drag, edit/move, private signup isolation, seed retries, preserved edits/deletions/passwords and restart persistence.
+Seeded board/login, pointer drag, edit/move, private signup isolation, seed retries, preserved edits/deletions/passwords and restart persistence. The same suite checks card validation and error focus, saving multiple text edits without interrupting keyboard navigation, focus return after closing the editor, and room to use the board with expanded filters at a measured 375px.
 
 CI supplies only fictional credentials and an isolated local PostgreSQL service.
 `DATABASE_URL` and `NEANDER_TEMPLATE_TEST_DATABASE_URL` must identify the same
