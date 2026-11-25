@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
+import { useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { apiRequest } from "./client-api";
 
 type Reviewer = { id: string; name: string };
@@ -16,10 +16,9 @@ export function ReviewerAccessPanel({ boardId, initialReviewer }: { boardId: str
   const revokeRef = useRef<HTMLButtonElement>(null);
   const pending = useRef(false);
 
-  function toggle() {
-    setOpen(!open);
-    if (!open) requestAnimationFrame(() => (reviewer ? revokeRef : inputRef).current?.focus());
-  }
+  useLayoutEffect(() => {
+    if (open && !busy) (reviewer ? revokeRef : inputRef).current?.focus();
+  }, [open, busy, reviewer]);
 
   async function changeAccess(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -42,7 +41,6 @@ export function ReviewerAccessPanel({ boardId, initialReviewer }: { boardId: str
       setReviewer(result ?? null);
       setDraft("");
       setStatus(result ? `${result.name} can now review this board.` : "Reviewer access revoked.");
-      requestAnimationFrame(() => (result ? revokeRef : inputRef).current?.focus());
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : "Couldn’t update access. Try again.");
     } finally {
@@ -52,7 +50,7 @@ export function ReviewerAccessPanel({ boardId, initialReviewer }: { boardId: str
   }
 
   return <>
-    <button className="button-quiet reviewer-access-toggle" type="button" aria-expanded={open} aria-controls="reviewer-access-panel" onClick={toggle}>Reviewer access</button>
+    <button className="button-quiet reviewer-access-toggle" type="button" aria-expanded={open} aria-controls="reviewer-access-panel" onClick={() => setOpen((visible) => !visible)}>Reviewer access</button>
     {open && <section className="reviewer-access-panel" id="reviewer-access-panel" aria-labelledby="reviewer-access-heading">
       <div>
         <h2 id="reviewer-access-heading">Private reviewer access</h2>
