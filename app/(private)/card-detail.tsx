@@ -8,6 +8,7 @@ type DetailCard = BoardCardView & { description: string; listId: string; archive
 type ChecklistItem = { id: string; text: string; done: boolean; position: number };
 type CardComment = { id: string; authorId: string; authorName: string; text: string; createdAt: string; canDelete?: boolean };
 type BoardLabel = { id: string; name: string; color: string };
+type TextField = "title" | "description";
 
 type Props = {
   boardId: string;
@@ -38,6 +39,15 @@ export function CardDetail({ boardId, cardId, columns, initialPosition, onClose,
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const savingRef = useRef(false);
+  const [pendingTextCount, setPendingTextCount] = useState(0);
+  const [closing, setClosing] = useState(false);
+  const closingRef = useRef(false);
+  const [textErrors, setTextErrors] = useState<Partial<Record<TextField, string>>>({});
+  const textQueue = useRef(Promise.resolve());
+  const savedText = useRef<Record<TextField, string>>({ title: "", description: "" });
+  const queuedText = useRef<Partial<Record<TextField, { value: string }>>>({});
+  const failedText = useRef(new Set<TextField>());
+  const closeRef = useRef<HTMLButtonElement>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const dialogRef = useRef<HTMLElement>(null);
 
@@ -67,6 +77,7 @@ export function CardDetail({ boardId, cardId, columns, initialPosition, onClose,
     ]).then(([loadedCard, loadedItems, loadedComments, loadedLabels, allLabels]) => {
       if (!active) return;
       setCard(loadedCard);
+      savedText.current = { title: loadedCard.title, description: loadedCard.description };
       setTitleDraft(loadedCard.title);
       setDescriptionDraft(loadedCard.description);
       setItems(loadedItems);
@@ -87,14 +98,14 @@ export function CardDetail({ boardId, cardId, columns, initialPosition, onClose,
   }, [boardId, cardId]);
 
   useEffect(() => {
-    if (!loading) titleRef.current?.focus();
+    (loading ? closeRef.current : titleRef.current ?? closeRef.current)?.focus();
   }, [loading]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault();
-        onClose();
+        void requestClose();
         return;
       }
       if (event.key !== "Tab" || !dialogRef.current) return;
@@ -102,62 +113,96 @@ export function CardDetail({ boardId, cardId, columns, initialPosition, onClose,
       if (focusable.length === 0) return;
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
+      const inside = dialogRef.current.contains(document.activeElement);
+      if (event.shiftKey && (document.activeElement === first || !inside)) {
         event.preventDefault();
         last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
+      } else if (!event.shiftKey && (document.activeElement === last || !inside)) {
         event.preventDefault();
         first.focus();
       }
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  });
 
   function reflectChecklist(nextItems: ChecklistItem[]) {
     onCardChange(cardId, { checklistDone: nextItems.filter((item) => item.done).length, checklistTotal: nextItems.length });
   }
 
-  async function saveCardField<K extends "title" | "description" | "dueDate" | "archived">(field: K, value: DetailCard[K]) {
-    if (!card) return;
-    if (!startSaving()) return;
+  async function saveCardField<K extends "dueDate" | "archived">(field: K, value: DetailCard[K]) {
+    if (!card || !startSaving()) return;
     const previous = card[field];
     setCard((current) => current ? { ...current, [field]: value } : current);
-    if (field === "title" || field === "description" || field === "dueDate") onCardChange(cardId, { [field]: value });
     try {
       const saved = await apiRequest<DetailCard>(`/api/cards/${cardId}`, { method: "PATCH", body: JSON.stringify({ [field]: value }) });
-      setCard((current) => current ? { ...current, ...saved } : current);
-      if (field === "title" || field === "description" || field === "dueDate") onCardChange(cardId, { [field]: value });
-      if (field === "archived") onCardChange(cardId, { archived: value as boolean });
-      setTitleDraft(saved.title);
-      setDescriptionDraft(saved.description);
+      setCard((current) => current ? { ...current, [field]: saved[field] } : current);
+      if (field === "dueDate") onCardChange(cardId, { dueDate: saved.dueDate });
+      if (field === "archived") {
+        onCardChange(cardId, { archived: saved.archived, title: saved.title, description: saved.description });
+      }
     } catch (requestError) {
       setCard((current) => current ? { ...current, [field]: previous } : current);
-      if (field === "title" || field === "description" || field === "dueDate") onCardChange(cardId, { [field]: previous as never });
-      if (field === "title") setTitleDraft(String(previous));
-      if (field === "description") setDescriptionDraft(String(previous));
       setError(requestError instanceof Error ? requestError.message : "We couldn’t save that change.");
     } finally {
       finishSaving();
     }
   }
 
-  async function saveTitle() {
-    const title = titleDraft.trim();
-    if (!title) {
-      setError("Card title is required.");
-      setTitleDraft(card?.title ?? "");
+  function saveTextOnBlur(field: TextField) {
+    if (!card) return;
+    const value = (field === "title" ? titleDraft : descriptionDraft).trim();
+    if (field === "title" && (!value || value.length > 200)) {
+      const message = !value ? "Card title is required." : "Card title must be 200 characters or fewer.";
+      setTextErrors((current) => ({ ...current, title: message }));
       return;
     }
-    if (title.length > 200) {
-      setError("Card title must be 200 characters or fewer.");
+
+    const lastValue = queuedText.current[field]?.value ?? savedText.current[field];
+    if (value === lastValue) {
+      if (!queuedText.current[field]) {
+        failedText.current.delete(field);
+        setTextErrors((current) => ({ ...current, [field]: undefined }));
+      }
       return;
     }
-    if (title !== card?.title) await saveCardField("title", title);
+
+    // Serialize text edits without disabling the control the user tabs to next.
+    const change = { value };
+    queuedText.current[field] = change;
+    setPendingTextCount((count) => count + 1);
+    setTextErrors((current) => ({ ...current, [field]: undefined }));
+    textQueue.current = textQueue.current.then(async () => {
+      try {
+        const saved = await apiRequest<DetailCard>(`/api/cards/${cardId}`, { method: "PATCH", body: JSON.stringify({ [field]: value }) });
+        savedText.current[field] = saved[field];
+        failedText.current.delete(field);
+        setCard((current) => current ? { ...current, [field]: saved[field] } : current);
+        onCardChange(cardId, { [field]: saved[field] });
+      } catch (requestError) {
+        if (queuedText.current[field] === change) {
+          failedText.current.add(field);
+          const message = requestError instanceof Error ? requestError.message : "We couldn’t save that change.";
+          setTextErrors((current) => ({ ...current, [field]: message }));
+        }
+      } finally {
+        if (queuedText.current[field] === change) delete queuedText.current[field];
+        setPendingTextCount((count) => count - 1);
+      }
+    });
   }
 
-  async function saveDescription() {
-    if (descriptionDraft !== card?.description) await saveCardField("description", descriptionDraft);
+  async function requestClose() {
+    if (closingRef.current) return;
+    closingRef.current = true;
+    setClosing(true);
+    // Escape does not blur a field before closing the editor.
+    saveTextOnBlur("title");
+    saveTextOnBlur("description");
+    await textQueue.current;
+    closingRef.current = false;
+    setClosing(false);
+    if (!failedText.current.size) onClose();
   }
 
   async function toggleLabel(label: BoardLabel) {
@@ -308,20 +353,55 @@ export function CardDetail({ boardId, cardId, columns, initialPosition, onClose,
   const checklistPercent = items.length ? Math.round(items.filter((item) => item.done).length / items.length * 100) : 0;
 
   return (
-    <div className="card-dialog-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <div className="card-dialog-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) void requestClose(); }}>
       <section className="card-dialog" role="dialog" aria-modal="true" aria-labelledby="card-dialog-title" ref={dialogRef}>
         <header className="card-dialog-header">
           <span className="eyebrow" id="card-dialog-title">Card details</span>
-          <button className="icon-button" type="button" onClick={onClose} aria-label="Close card details">×</button>
+          <div className="card-dialog-heading-actions">
+            <span className="card-save-status" role="status">
+              {loading ? "" : saving || pendingTextCount ? "Saving…" : error || textErrors.title || textErrors.description ? "" : "Changes save automatically"}
+            </span>
+            <button ref={closeRef} className="icon-button" type="button" onClick={() => void requestClose()} aria-label="Close card details">×</button>
+          </div>
         </header>
         {loading ? <p className="detail-loading">Loading card details…</p> : error && !card ? <p className="app-error" role="alert">{error}</p> : card && (
           <div className="card-dialog-content">
             {error && <p className="app-error detail-error" role="alert">{error}</p>}
             <label className="detail-field detail-title-field" htmlFor="card-detail-title">Title</label>
-            <textarea id="card-detail-title" ref={titleRef} className="detail-title-input" rows={2} disabled={saving} value={titleDraft} onChange={(event) => setTitleDraft(event.target.value)} onBlur={() => void saveTitle()} />
+            <textarea
+              id="card-detail-title"
+              ref={titleRef}
+              className="detail-title-input"
+              rows={2}
+              readOnly={closing}
+              aria-invalid={textErrors.title ? true : undefined}
+              aria-describedby={textErrors.title ? "card-detail-title-error" : undefined}
+              value={titleDraft}
+              onChange={(event) => {
+                setTitleDraft(event.target.value);
+                if (textErrors.title) setTextErrors((current) => ({ ...current, title: undefined }));
+              }}
+              onBlur={() => saveTextOnBlur("title")}
+            />
+            {textErrors.title && <span id="card-detail-title-error" className="field-error" role="alert">{textErrors.title}</span>}
 
             <label className="detail-field" htmlFor="card-detail-description">Description</label>
-            <textarea id="card-detail-description" className="detail-description" maxLength={10000} disabled={saving} value={descriptionDraft} onChange={(event) => setDescriptionDraft(event.target.value)} onBlur={() => void saveDescription()} placeholder="Add more detail…" />
+            <textarea
+              id="card-detail-description"
+              className="detail-description"
+              maxLength={10000}
+              readOnly={closing}
+              aria-invalid={textErrors.description ? true : undefined}
+              aria-describedby={textErrors.description ? "card-detail-description-error" : undefined}
+              value={descriptionDraft}
+              onChange={(event) => {
+                setDescriptionDraft(event.target.value);
+                if (textErrors.description) setTextErrors((current) => ({ ...current, description: undefined }));
+              }}
+              onBlur={() => saveTextOnBlur("description")}
+              placeholder="Add more detail…"
+            />
+            {textErrors.description && <span id="card-detail-description-error" className="field-error" role="alert">{textErrors.description}</span>}
 
             <section className="detail-section" aria-labelledby="labels-heading">
               <h3 id="labels-heading">Labels</h3>
@@ -358,7 +438,7 @@ export function CardDetail({ boardId, cardId, columns, initialPosition, onClose,
               <form className="move-card-form" onSubmit={(event) => void moveCard(event)}><label><span>List</span><select disabled={saving} value={selectedList} onChange={(event) => { setSelectedList(event.target.value); setSelectedPosition(1); }}>{columns.map((column) => <option value={column.id} key={column.id}>{column.name}</option>)}</select></label><label><span>Position</span><select disabled={saving} value={Math.min(selectedPosition, Math.max(1, availablePositions))} onChange={(event) => setSelectedPosition(Number(event.target.value))}>{Array.from({ length: Math.max(1, availablePositions) }, (_, index) => <option value={index + 1} key={index}>{index + 1}</option>)}</select></label><button className="button-small" type="submit" disabled={saving || !selectedList}>{saving ? "Moving…" : "Move card"}</button></form>
             </section>}
 
-            <footer className="card-dialog-footer"><button className="button-quiet danger-text" type="button" disabled={card.archived || saving} onClick={() => void saveCardField("archived", true)}>{card.archived ? "Archived" : "Archive card"}</button><span>Changes save as you edit.</span></footer>
+            <footer className="card-dialog-footer"><button className="button-quiet danger-text" type="button" disabled={card.archived || saving} onClick={() => void saveCardField("archived", true)}>{card.archived ? "Archived" : "Archive card"}</button>{failedText.current.size > 0 && !pendingTextCount && <button className="button-quiet" type="button" onClick={onClose}>Discard unsaved changes</button>}</footer>
           </div>
         )}
       </section>
