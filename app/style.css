@@ -392,3 +392,11 @@ button.button-quiet, button.button-small, button.button-primary, button.icon-but
   .calendar-agenda .calendar-day { min-height: 0; padding: .55rem; border: 1px solid var(--line); border-radius: 9px; }
   .calendar-agenda .calendar-card { min-height: 44px; font-size: .87rem; }
 }
+
+.brief-copy-trigger { min-height: 40px; border: 1px solid var(--line); color: var(--green-dark); }
+.brief-copy-form { display: grid; gap: .55rem; padding: 1rem; border: 1px solid var(--line); border-radius: 10px; background: #f3f7f2; }
+.brief-copy-form p { margin: 0 0 .2rem; color: var(--muted); font-size: .84rem; }
+.brief-copy-form label { font-size: .82rem; font-weight: 700; }
+.brief-copy-form input, .brief-copy-form select { min-width: 0; min-height: 42px; padding: .45rem .6rem; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.brief-copy-form .inline-actions { margin-top: .35rem; }
+.brief-copy-form .inline-actions button { min-height: 40px; }

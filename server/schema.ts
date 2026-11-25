@@ -26,6 +26,18 @@ export const cards = pgTable("cards", {
   archivedAt: timestamp("archived_at", { withTimezone: true, mode: "date" }),
 }, (table) => [index("cards_list_position_idx").on(table.listId, table.position)]);
 
+export const briefCopies = pgTable("brief_copies", {
+  boardId: uuid("board_id").notNull().references(() => boards.id, { onDelete: "cascade" }),
+  requestId: uuid("request_id").notNull(),
+  sourceId: uuid("source_id").notNull(),
+  destinationId: uuid("destination_id").notNull(),
+  title: text("title").notNull(),
+  copyId: uuid("copy_id").references(() => cards.id, { onDelete: "set null" }),
+}, (table) => [
+  primaryKey({ columns: [table.boardId, table.requestId] }),
+  index("brief_copies_copy_idx").on(table.copyId),
+]);
+
 export const labels = pgTable("labels", {
   id: uuid("id").defaultRandom().primaryKey(),
   boardId: uuid("board_id").notNull().references(() => boards.id, { onDelete: "cascade" }),

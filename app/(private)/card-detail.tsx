@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { BriefCopyForm } from "./brief-copy-form";
 import { apiRequest } from "./client-api";
 import type { BoardCardView, BoardColumnView } from "./board-client";
 
@@ -10,6 +11,8 @@ type CardComment = { id: string; authorId: string; authorName: string; text: str
 type BoardLabel = { id: string; name: string; color: string };
 type TextField = "title" | "description";
 
+export type BriefCopyResult = { card: BoardCardView; listId: string; position: number };
+
 type Props = {
   boardId: string;
   cardId: string;
@@ -17,10 +20,11 @@ type Props = {
   initialPosition: number;
   onClose: () => void;
   onCardChange: (cardId: string, updates: Partial<BoardCardView> & { archived?: boolean }) => void;
+  onBriefCopied: (result: BriefCopyResult) => void;
   onMove: (cardId: string, listId: string, position: number) => Promise<void>;
 };
 
-export function CardDetail({ boardId, cardId, columns, initialPosition, onClose, onCardChange, onMove }: Props) {
+export function CardDetail({ boardId, cardId, columns, initialPosition, onClose, onCardChange, onMove, onBriefCopied }: Props) {
   const [card, setCard] = useState<DetailCard | null>(null);
   const [titleDraft, setTitleDraft] = useState("");
   const [descriptionDraft, setDescriptionDraft] = useState("");
@@ -193,7 +197,7 @@ export function CardDetail({ boardId, cardId, columns, initialPosition, onClose,
   }
 
   async function requestClose() {
-    if (closingRef.current) return;
+    if (closingRef.current || savingRef.current) return;
     closingRef.current = true;
     setClosing(true);
     // Escape does not blur a field before closing the editor.
@@ -203,6 +207,21 @@ export function CardDetail({ boardId, cardId, columns, initialPosition, onClose,
     closingRef.current = false;
     setClosing(false);
     if (!failedText.current.size) onClose();
+  }
+
+  async function copyBrief(title: string, listId: string, requestId: string) {
+    if (!startSaving()) return;
+    try {
+      saveTextOnBlur("description");
+      await textQueue.current;
+      if (failedText.current.has("description")) throw new Error("Save the description before copying the brief.");
+      const result = await apiRequest<BriefCopyResult>(`/api/cards/${cardId}/copy`, {
+        method: "POST", body: JSON.stringify({ title, listId, requestId }),
+      });
+      onBriefCopied(result);
+    } finally {
+      finishSaving();
+    }
   }
 
   async function toggleLabel(label: BoardLabel) {
@@ -402,6 +421,8 @@ export function CardDetail({ boardId, cardId, columns, initialPosition, onClose,
               placeholder="Add more detail…"
             />
             {textErrors.description && <span id="card-detail-description-error" className="field-error" role="alert">{textErrors.description}</span>}
+
+            {!card.archived && <BriefCopyForm title={titleDraft.trim() || card.title} listId={card.listId} columns={columns} busy={saving || closing} onCopy={copyBrief} />}
 
             <section className="detail-section" aria-labelledby="labels-heading">
               <h3 id="labels-heading">Labels</h3>

@@ -8,7 +8,7 @@ import { useEffect, useId, useRef, useState, type DragEvent, type FormEvent, typ
 import { SignOutButton } from "../sign-out-button";
 import { apiRequest } from "./client-api";
 import { BoardCalendar } from "./board-calendar";
-import { CardDetail } from "./card-detail";
+import { CardDetail, type BriefCopyResult } from "./card-detail";
 
 export type BoardCardView = {
   id: string;
@@ -409,6 +409,18 @@ export function BoardClient({ initialBoard, initialArchivedCards }: Props) {
     setDueFilter("");
   }
 
+  function openCopiedBrief({ card, listId, position }: BriefCopyResult) {
+    setColumns((current) => current.map((column) => {
+      const nextCards = column.cards.filter((entry) => entry.id !== card.id);
+      if (column.id === listId) nextCards.splice(position, 0, card);
+      return { ...column, cards: nextCards };
+    }));
+    clearFilters();
+    calendarTriggerRef.current = null;
+    setView("board");
+    setActiveCardId(card.id);
+  }
+
   function closeCard(cardId: string) {
     setActiveCardId(null);
     requestAnimationFrame(() => {
@@ -519,7 +531,7 @@ export function BoardClient({ initialBoard, initialArchivedCards }: Props) {
       </>}
       <footer className="board-footer"><span>{view === "board" && (draggingCardId ? "Drop the card into another list or position." : "Drag a card to reorder it, or use Move to.")}</span><Link href="/">← All boards</Link></footer>
 
-      {activeCardId && <CardDetail key={activeCardId} boardId={board.id} cardId={activeCardId} columns={columns} initialPosition={activePosition} onClose={() => closeCard(activeCardId)} onCardChange={updateCardFront} onMove={moveCard} />}
+      {activeCardId && <CardDetail key={activeCardId} boardId={board.id} cardId={activeCardId} columns={columns} initialPosition={activePosition} onClose={() => closeCard(activeCardId)} onCardChange={updateCardFront} onMove={moveCard} onBriefCopied={openCopiedBrief} />}
     </main>
   );
 }
