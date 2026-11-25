@@ -1,12 +1,26 @@
 contract_version: 1
 id: content-board
 title: Cadence
-description: Plan marketing content on private boards with draggable cards, labels, due dates, checklists and comments.
+description: Plan editorial work on private boards, schedule deadlines on a calendar, reuse briefs, and collect feedback from a reviewer you choose.
 category: Marketing
-best_for: Marketing teams and creators organizing their content pipeline
-features: [Boards and lists, Drag-and-drop cards, Labels and due dates, Checklists, Comments, Search and filters]
-included: [Content planning application, PostgreSQL migrations, Fictional marketing board]
+best_for: Marketing teams and creators planning campaigns and reviewing content
+features:
+  - Editorial calendar and phone agenda
+  - Same-board brief duplication
+  - Private reviewer access and comments
+  - Boards, lists, and drag-and-drop cards
+  - Labels, due dates, and checklists
+  - Board search, filters, and archive
+included:
+  - Cadence content planning workspace
+  - Fictional marketing board with sample cards, labels, and checklists
+  - PostgreSQL migrations for boards, brief copies, and reviewer grants
 thumbnail: .neander/thumbnail.png
+screenshots:
+  - .neander/screenshots/editorial-agenda-phone.png
+  - .neander/screenshots/reuse-content-brief.png
+  - .neander/screenshots/private-reviewer-feedback.png
+  - .neander/screenshots/content-board.png
 commands:
   install: [pnpm, install, --frozen-lockfile]
   check: [pnpm, run, check]
