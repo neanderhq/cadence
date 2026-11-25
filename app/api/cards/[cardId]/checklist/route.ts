@@ -1,6 +1,7 @@
 import { asc, eq, sql } from "drizzle-orm";
 import { ApiError, handleApi, optionalPosition, ownedCard, readJson, requiredText } from "../../../../../server/api";
 import { getDb } from "../../../../../server/db";
+import { readableCard } from "../../../../../server/reviewer-access";
 import { checklistItems } from "../../../../../server/schema";
 
 type Context = { params: Promise<{ cardId: string }> };
@@ -8,7 +9,7 @@ type Context = { params: Promise<{ cardId: string }> };
 export function GET(request: Request, { params }: Context) {
   return handleApi(request, async (userId) => {
     const { cardId } = await params;
-    const card = await ownedCard(userId, cardId);
+    const { card } = await readableCard(userId, cardId);
     return Response.json(await getDb().select().from(checklistItems).where(eq(checklistItems.cardId, card.id))
       .orderBy(asc(checklistItems.position), asc(checklistItems.id)));
   });

@@ -9,6 +9,7 @@ import { SignOutButton } from "../sign-out-button";
 import { apiRequest } from "./client-api";
 import { BoardCalendar } from "./board-calendar";
 import { CardDetail, type BriefCopyResult } from "./card-detail";
+import { ReviewerAccessPanel } from "./reviewer-access-panel";
 
 export type BoardCardView = {
   id: string;
@@ -25,7 +26,7 @@ export type ArchivedCardView = BoardCardView & { listId: string; listName: strin
 export type BoardColumnView = { id: string; name: string; position: number; cards: BoardCardView[] };
 export type BoardView = { id: string; name: string; columns: BoardColumnView[] };
 
-type Props = { initialBoard: BoardView; initialArchivedCards: ArchivedCardView[] };
+type Props = { initialBoard: BoardView; initialArchivedCards: ArchivedCardView[]; initialReviewer: { id: string; name: string } | null };
 const CARD_TRIGGER_PREFIX = "open-card-";
 
 type SortableCardProps = {
@@ -99,7 +100,7 @@ function DroppableCardStack({ column, children }: { column: BoardColumnView; chi
   return <div ref={setNodeRef} className={`card-stack${isOver ? " is-drop-target" : ""}`}>{children}</div>;
 }
 
-export function BoardClient({ initialBoard, initialArchivedCards }: Props) {
+export function BoardClient({ initialBoard, initialArchivedCards, initialReviewer }: Props) {
   const board = initialBoard;
   const dndContextId = useId();
   const [columns, setColumns] = useState(initialBoard.columns);
@@ -441,7 +442,7 @@ export function BoardClient({ initialBoard, initialArchivedCards }: Props) {
     <main className="app-main board-page">
       <header className="topbar board-topbar">
         <div className="board-breadcrumbs"><Link href="/" className="brand"><span className="brand-mark">C</span><span>Cadence</span></Link><span className="breadcrumb-divider">/</span><span className="breadcrumb-current">Boards</span></div>
-        <div className="topbar-actions"><span className="private-pill"><span /> Private workspace</span><SignOutButton /></div>
+        <div className="topbar-actions"><span className="private-pill"><span /> Private workspace</span><ReviewerAccessPanel boardId={board.id} initialReviewer={initialReviewer} /><SignOutButton /></div>
       </header>
 
       <section className="board-heading">

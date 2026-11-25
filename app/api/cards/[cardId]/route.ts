@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { handleApi, optionalDate, optionalPosition, optionalText, ownedCard, pathId, readJson } from "../../../../server/api";
 import { deleteBoardCard, moveBoardCard, restoreBoardCard } from "../../../../server/card-order";
 import { getDb } from "../../../../server/db";
+import { readableCard } from "../../../../server/reviewer-access";
 import { cards } from "../../../../server/schema";
 
 type Context = { params: Promise<{ cardId: string }> };
@@ -9,9 +10,8 @@ type Context = { params: Promise<{ cardId: string }> };
 export function GET(request: Request, { params }: Context) {
   return handleApi(request, async (userId) => {
     const { cardId } = await params;
-    const owned = await ownedCard(userId, cardId);
-    const [result] = await getDb().select().from(cards).where(eq(cards.id, owned.id)).limit(1);
-    return Response.json(result);
+    const { card } = await readableCard(userId, cardId);
+    return Response.json(card);
   });
 }
 

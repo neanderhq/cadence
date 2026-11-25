@@ -8,6 +8,11 @@ export const boards = pgTable("boards", {
   position: integer("position").notNull().default(0),
 }, (table) => [index("boards_owner_position_idx").on(table.ownerId, table.position)]);
 
+export const boardReviewers = pgTable("board_reviewers", {
+  boardId: uuid("board_id").primaryKey().references(() => boards.id, { onDelete: "cascade" }),
+  reviewerId: text("reviewer_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+}, (table) => [index("board_reviewers_reviewer_idx").on(table.reviewerId)]);
+
 export const lists = pgTable("lists", {
   id: uuid("id").defaultRandom().primaryKey(),
   boardId: uuid("board_id").notNull().references(() => boards.id, { onDelete: "cascade" }),

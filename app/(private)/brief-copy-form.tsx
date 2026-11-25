@@ -15,7 +15,7 @@ export function BriefCopyForm({ title, listId, columns, busy, onCopy }: Props) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(title);
   const [destination, setDestination] = useState(listId);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<{ message: string; invalidTitle?: boolean } | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const requestId = useRef("");
@@ -24,7 +24,7 @@ export function BriefCopyForm({ title, listId, columns, busy, onCopy }: Props) {
     requestId.current = crypto.randomUUID();
     setDraft(title);
     setDestination(listId);
-    setError("");
+    setError(null);
     setOpen(true);
     requestAnimationFrame(() => inputRef.current?.focus());
   }
@@ -39,15 +39,15 @@ export function BriefCopyForm({ title, listId, columns, busy, onCopy }: Props) {
     if (busy) return;
     const name = draft.trim();
     if (!name || name.length > 200) {
-      setError(name ? "Brief title must be 200 characters or fewer." : "Brief title is required.");
+      setError({ message: name ? "Brief title must be 200 characters or fewer." : "Brief title is required.", invalidTitle: true });
       inputRef.current?.focus();
       return;
     }
-    setError("");
+    setError(null);
     try {
       await onCopy(name, destination, requestId.current);
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : "Couldn’t copy the brief. Try again.");
+      setError({ message: failure instanceof Error ? failure.message : "Couldn’t copy the brief. Try again." });
     }
   }
 
@@ -57,12 +57,12 @@ export function BriefCopyForm({ title, listId, columns, busy, onCopy }: Props) {
         <h3 id="brief-copy-heading">Duplicate as new brief</h3>
         <p>Keep the description, labels and checklist. The new brief starts with an unchecked checklist and no dates or comments.</p>
         <label htmlFor="brief-copy-title">Brief title</label>
-        <input id="brief-copy-title" ref={inputRef} value={draft} maxLength={200} disabled={busy} aria-invalid={Boolean(error) || undefined} aria-describedby={error ? "brief-copy-error" : undefined} onChange={(event) => { setDraft(event.target.value); setError(""); }} />
+        <input id="brief-copy-title" ref={inputRef} value={draft} maxLength={200} disabled={busy} aria-invalid={error?.invalidTitle} aria-describedby={error ? "brief-copy-error" : undefined} onChange={(event) => { setDraft(event.target.value); setError(null); }} />
         <label htmlFor="brief-copy-list">Destination list</label>
-        <select id="brief-copy-list" value={destination} disabled={busy} onChange={(event) => { setDestination(event.target.value); setError(""); }}>
+        <select id="brief-copy-list" value={destination} disabled={busy} onChange={(event) => { setDestination(event.target.value); setError(null); }}>
           {columns.map((column) => <option value={column.id} key={column.id}>{column.name}</option>)}
         </select>
-        {error && <span className="field-error" id="brief-copy-error" role="alert">{error}</span>}
+        {error && <span className="field-error" id="brief-copy-error" role="alert">{error.message}</span>}
         <div className="inline-actions">
           <button className="button-small" type="submit" disabled={busy}>{busy ? "Creating…" : "Create brief"}</button>
           <button className="button-quiet" type="button" disabled={busy} onClick={cancel}>Cancel</button>

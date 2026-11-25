@@ -1,10 +1,12 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, or } from "drizzle-orm";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { BoardClient, type BoardView, type BoardColumnView, type ArchivedCardView } from "../../board-client";
+import { ReviewerBoard } from "../../reviewer-board";
+import { boardReviewer } from "../../../../server/reviewer-access";
 import { getAuth } from "../../../../server/auth";
 import { getDb } from "../../../../server/db";
-import { boards, cardLabels, cards, checklistItems, comments, labels, lists } from "../../../../server/schema";
+import { boardReviewers, boards, cardLabels, cards, checklistItems, comments, labels, lists } from "../../../../server/schema";
 
 type Context = { params: Promise<{ boardId: string }> };
 
@@ -14,15 +16,17 @@ export default async function BoardPage({ params }: Context) {
   const session = await getAuth().api.getSession({ headers: await headers() });
   if (!session) redirect("/login");
 
-  const [board] = await getDb().select().from(boards)
-    .where(and(eq(boards.id, boardId), eq(boards.ownerId, session.user.id))).limit(1);
+  const [board] = await getDb().select({ id: boards.id, name: boards.name, ownerId: boards.ownerId }).from(boards)
+    .leftJoin(boardReviewers, and(eq(boardReviewers.boardId, boards.id), eq(boardReviewers.reviewerId, session.user.id)))
+    .where(and(eq(boards.id, boardId), or(eq(boards.ownerId, session.user.id), eq(boardReviewers.reviewerId, session.user.id)))).limit(1);
   if (!board) notFound();
 
+  const isOwner = board.ownerId === session.user.id;
   const boardLists = await getDb().select().from(lists).where(eq(lists.boardId, board.id))
     .orderBy(asc(lists.position), asc(lists.id));
   const listIds = boardLists.map((list) => list.id);
   const boardCards = listIds.length
-    ? await getDb().select().from(cards).where(inArray(cards.listId, listIds))
+    ? await getDb().select().from(cards).where(and(inArray(cards.listId, listIds), isOwner ? undefined : eq(cards.archived, false)))
       .orderBy(asc(cards.position), asc(cards.id))
     : [];
   const cardIds = boardCards.map((card) => card.id);
@@ -56,12 +60,14 @@ export default async function BoardPage({ params }: Context) {
     position: list.position,
     cards: boardCards.filter((card) => card.listId === list.id && !card.archived).map(makeCard),
   }));
+  const boardView: BoardView = { id: board.id, name: board.name, columns };
+  if (!isOwner) return <ReviewerBoard board={boardView} />;
+
   const archivedCards: ArchivedCardView[] = boardCards.filter((card) => card.archived).map((card) => ({
     ...makeCard(card),
     listId: card.listId,
     listName: boardLists.find((list) => list.id === card.listId)?.name ?? "Deleted list",
     archivedAt: card.archivedAt?.toISOString() ?? null,
   }));
-  const boardView: BoardView = { id: board.id, name: board.name, columns };
-  return <BoardClient initialBoard={boardView} initialArchivedCards={archivedCards} />;
+  return <BoardClient initialBoard={boardView} initialArchivedCards={archivedCards} initialReviewer={await boardReviewer(board.id)} />;
 }
