@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { DashboardClient, type DashboardBoard } from "./dashboard-client";
 import { getAuth } from "../../server/auth";
 import { getDb } from "../../server/db";
-import { boards, cards, lists } from "../../server/schema";
+import { boardReviewers, boards, cards, lists } from "../../server/schema";
 
 export default async function HomePage() {
   const session = await getAuth().api.getSession({ headers: await headers() });
@@ -31,5 +31,8 @@ export default async function HomePage() {
     cardCount: cardsByBoard.get(board.id) ?? 0,
   }));
 
-  return <DashboardClient initialBoards={dashboardBoards} userName={session.user.name} />;
+  const sharedBoards = await getDb().select({ id: boards.id, name: boards.name }).from(boardReviewers)
+    .innerJoin(boards, eq(boardReviewers.boardId, boards.id))
+    .where(eq(boardReviewers.reviewerId, session.user.id)).orderBy(boards.name, boards.id);
+  return <DashboardClient initialBoards={dashboardBoards} userName={session.user.name} reviewerId={session.user.id} sharedBoards={sharedBoards} />;
 }

@@ -6,9 +6,9 @@ import { SignOutButton } from "../sign-out-button";
 import { apiRequest } from "./client-api";
 
 export type DashboardBoard = { id: string; name: string; listCount: number; cardCount: number };
-type Props = { initialBoards: DashboardBoard[]; userName: string };
+type Props = { initialBoards: DashboardBoard[]; userName: string; reviewerId: string; sharedBoards: { id: string; name: string }[] };
 
-export function DashboardClient({ initialBoards, userName }: Props) {
+export function DashboardClient({ initialBoards, userName, reviewerId, sharedBoards }: Props) {
   const [boards, setBoards] = useState(initialBoards);
   const [newName, setNewName] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -90,10 +90,15 @@ export function DashboardClient({ initialBoards, userName }: Props) {
             <h1>Good to see you, {userName.split(" ")[0]}.</h1>
             <p>Keep every campaign moving, from the first spark to publish day.</p>
           </div>
-          <div className="intro-note"><span className="intro-note-icon">✳</span><span>Your boards are private to you.</span></div>
+          <div className="intro-note"><span className="intro-note-icon">✳</span><span>Your boards are private by default.</span></div>
         </section>
 
         {error && <p className="app-error" role="alert">{error}</p>}
+
+        {sharedBoards.length > 0 && <section className="workspace-section shared-boards" aria-labelledby="shared-boards-heading">
+          <div className="section-heading"><div><h2 id="shared-boards-heading">Shared with you</h2><p>Open a board to review active cards and leave comments.</p></div></div>
+          <ul>{sharedBoards.map((board) => <li key={board.id}><Link prefetch={false} href={`/boards/${board.id}`}>{board.name}</Link><span className="reviewer-badge">Reviewer</span></li>)}</ul>
+        </section>}
 
         <section className="workspace-section" aria-labelledby="boards-heading">
           <div className="section-heading">
@@ -140,6 +145,11 @@ export function DashboardClient({ initialBoards, userName }: Props) {
           </div>
           {boards.length === 0 && <p className="empty-workspace">No boards yet. Create one to start planning.</p>}
         </section>
+        <details className="workspace-reviewer-id">
+          <summary>Your reviewer ID</summary>
+          <p>Share this ID with a board owner who wants to give you reviewer access.</p>
+          <input aria-label="Your reviewer ID" value={reviewerId} readOnly onFocus={(event) => event.currentTarget.select()} />
+        </details>
         <footer className="workspace-footer"><span>Small steps make great stories.</span><span>Cadence · Private by design</span></footer>
       </div>
     </main>

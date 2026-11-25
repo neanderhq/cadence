@@ -8,6 +8,11 @@ export const boards = pgTable("boards", {
   position: integer("position").notNull().default(0),
 }, (table) => [index("boards_owner_position_idx").on(table.ownerId, table.position)]);
 
+export const boardReviewers = pgTable("board_reviewers", {
+  boardId: uuid("board_id").primaryKey().references(() => boards.id, { onDelete: "cascade" }),
+  reviewerId: text("reviewer_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+}, (table) => [index("board_reviewers_reviewer_idx").on(table.reviewerId)]);
+
 export const lists = pgTable("lists", {
   id: uuid("id").defaultRandom().primaryKey(),
   boardId: uuid("board_id").notNull().references(() => boards.id, { onDelete: "cascade" }),
@@ -25,6 +30,18 @@ export const cards = pgTable("cards", {
   archived: boolean("archived").notNull().default(false),
   archivedAt: timestamp("archived_at", { withTimezone: true, mode: "date" }),
 }, (table) => [index("cards_list_position_idx").on(table.listId, table.position)]);
+
+export const briefCopies = pgTable("brief_copies", {
+  boardId: uuid("board_id").notNull().references(() => boards.id, { onDelete: "cascade" }),
+  requestId: uuid("request_id").notNull(),
+  sourceId: uuid("source_id").notNull(),
+  destinationId: uuid("destination_id").notNull(),
+  title: text("title").notNull(),
+  copyId: uuid("copy_id").references(() => cards.id, { onDelete: "set null" }),
+}, (table) => [
+  primaryKey({ columns: [table.boardId, table.requestId] }),
+  index("brief_copies_copy_idx").on(table.copyId),
+]);
 
 export const labels = pgTable("labels", {
   id: uuid("id").defaultRandom().primaryKey(),

@@ -1,18 +1,18 @@
 import { and, eq } from "drizzle-orm";
 import { handleApi, notFound, ownedCard, ownedLabel, pathId, readJson, requiredText } from "../../../../../server/api";
 import { getDb } from "../../../../../server/db";
-import { boards, cardLabels, labels } from "../../../../../server/schema";
+import { readableCard } from "../../../../../server/reviewer-access";
+import { cardLabels, labels } from "../../../../../server/schema";
 
 type Context = { params: Promise<{ cardId: string }> };
 
 export function GET(request: Request, { params }: Context) {
   return handleApi(request, async (userId) => {
     const { cardId } = await params;
-    const card = await ownedCard(userId, cardId);
+    const { card, boardId } = await readableCard(userId, cardId);
     const assigned = await getDb().select({ id: labels.id, boardId: labels.boardId, name: labels.name, color: labels.color })
       .from(cardLabels).innerJoin(labels, eq(cardLabels.labelId, labels.id))
-      .innerJoin(boards, eq(labels.boardId, boards.id))
-      .where(and(eq(cardLabels.cardId, card.id), eq(labels.boardId, card.boardId), eq(boards.ownerId, userId)));
+      .where(and(eq(cardLabels.cardId, card.id), eq(labels.boardId, boardId)));
     return Response.json(assigned);
   });
 }

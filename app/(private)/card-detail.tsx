@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { BriefCopyForm } from "./brief-copy-form";
 import { apiRequest } from "./client-api";
 import type { BoardCardView, BoardColumnView } from "./board-client";
 
@@ -10,17 +11,21 @@ type CardComment = { id: string; authorId: string; authorName: string; text: str
 type BoardLabel = { id: string; name: string; color: string };
 type TextField = "title" | "description";
 
+export type BriefCopyResult = { card: BoardCardView; listId: string; position: number };
+
 type Props = {
   boardId: string;
   cardId: string;
   columns: BoardColumnView[];
   initialPosition: number;
   onClose: () => void;
-  onCardChange: (cardId: string, updates: Partial<BoardCardView> & { archived?: boolean }) => void;
-  onMove: (cardId: string, listId: string, position: number) => Promise<void>;
+  reviewOnly?: boolean;
+  onCardChange?: (cardId: string, updates: Partial<BoardCardView> & { archived?: boolean }) => void;
+  onBriefCopied?: (result: BriefCopyResult) => void;
+  onMove?: (cardId: string, listId: string, position: number) => Promise<void>;
 };
 
-export function CardDetail({ boardId, cardId, columns, initialPosition, onClose, onCardChange, onMove }: Props) {
+export function CardDetail({ boardId, cardId, columns, initialPosition, onClose, onCardChange, onMove, onBriefCopied, reviewOnly = false }: Props) {
   const [card, setCard] = useState<DetailCard | null>(null);
   const [titleDraft, setTitleDraft] = useState("");
   const [descriptionDraft, setDescriptionDraft] = useState("");
@@ -73,7 +78,7 @@ export function CardDetail({ boardId, cardId, columns, initialPosition, onClose,
       apiRequest<ChecklistItem[]>(`/api/cards/${cardId}/checklist`),
       apiRequest<CardComment[]>(`/api/cards/${cardId}/comments`),
       apiRequest<BoardLabel[]>(`/api/cards/${cardId}/labels`),
-      apiRequest<BoardLabel[]>(`/api/boards/${boardId}/labels`),
+      reviewOnly ? Promise.resolve([]) : apiRequest<BoardLabel[]>(`/api/boards/${boardId}/labels`),
     ]).then(([loadedCard, loadedItems, loadedComments, loadedLabels, allLabels]) => {
       if (!active) return;
       setCard(loadedCard);
@@ -95,7 +100,7 @@ export function CardDetail({ boardId, cardId, columns, initialPosition, onClose,
       setLoading(false);
     });
     return () => { active = false; };
-  }, [boardId, cardId]);
+  }, [boardId, cardId, reviewOnly]);
 
   useEffect(() => {
     (loading ? closeRef.current : titleRef.current ?? closeRef.current)?.focus();
@@ -127,7 +132,7 @@ export function CardDetail({ boardId, cardId, columns, initialPosition, onClose,
   });
 
   function reflectChecklist(nextItems: ChecklistItem[]) {
-    onCardChange(cardId, { checklistDone: nextItems.filter((item) => item.done).length, checklistTotal: nextItems.length });
+    onCardChange?.(cardId, { checklistDone: nextItems.filter((item) => item.done).length, checklistTotal: nextItems.length });
   }
 
   async function saveCardField<K extends "dueDate" | "archived">(field: K, value: DetailCard[K]) {
@@ -137,9 +142,9 @@ export function CardDetail({ boardId, cardId, columns, initialPosition, onClose,
     try {
       const saved = await apiRequest<DetailCard>(`/api/cards/${cardId}`, { method: "PATCH", body: JSON.stringify({ [field]: value }) });
       setCard((current) => current ? { ...current, [field]: saved[field] } : current);
-      if (field === "dueDate") onCardChange(cardId, { dueDate: saved.dueDate });
+      if (field === "dueDate") onCardChange?.(cardId, { dueDate: saved.dueDate });
       if (field === "archived") {
-        onCardChange(cardId, { archived: saved.archived, title: saved.title, description: saved.description });
+        onCardChange?.(cardId, { archived: saved.archived, title: saved.title, description: saved.description });
       }
     } catch (requestError) {
       setCard((current) => current ? { ...current, [field]: previous } : current);
@@ -150,7 +155,7 @@ export function CardDetail({ boardId, cardId, columns, initialPosition, onClose,
   }
 
   function saveTextOnBlur(field: TextField) {
-    if (!card) return;
+    if (!card || reviewOnly) return;
     const value = (field === "title" ? titleDraft : descriptionDraft).trim();
     if (field === "title" && (!value || value.length > 200)) {
       const message = !value ? "Card title is required." : "Card title must be 200 characters or fewer.";
@@ -178,7 +183,7 @@ export function CardDetail({ boardId, cardId, columns, initialPosition, onClose,
         savedText.current[field] = saved[field];
         failedText.current.delete(field);
         setCard((current) => current ? { ...current, [field]: saved[field] } : current);
-        onCardChange(cardId, { [field]: saved[field] });
+        onCardChange?.(cardId, { [field]: saved[field] });
       } catch (requestError) {
         if (queuedText.current[field] === change) {
           failedText.current.add(field);
@@ -193,7 +198,7 @@ export function CardDetail({ boardId, cardId, columns, initialPosition, onClose,
   }
 
   async function requestClose() {
-    if (closingRef.current) return;
+    if (closingRef.current || savingRef.current) return;
     closingRef.current = true;
     setClosing(true);
     // Escape does not blur a field before closing the editor.
@@ -205,13 +210,28 @@ export function CardDetail({ boardId, cardId, columns, initialPosition, onClose,
     if (!failedText.current.size) onClose();
   }
 
+  async function copyBrief(title: string, listId: string, requestId: string) {
+    if (!startSaving()) return;
+    try {
+      saveTextOnBlur("description");
+      await textQueue.current;
+      if (failedText.current.has("description")) throw new Error("Save the description before copying the brief.");
+      const result = await apiRequest<BriefCopyResult>(`/api/cards/${cardId}/copy`, {
+        method: "POST", body: JSON.stringify({ title, listId, requestId }),
+      });
+      onBriefCopied?.(result);
+    } finally {
+      finishSaving();
+    }
+  }
+
   async function toggleLabel(label: BoardLabel) {
     if (!startSaving()) return;
     const assigned = assignedLabels.some((item) => item.id === label.id);
     const previous = assignedLabels;
     const next = assigned ? previous.filter((item) => item.id !== label.id) : [...previous, label];
     setAssignedLabels(next);
-    onCardChange(cardId, { labels: next });
+    onCardChange?.(cardId, { labels: next });
     try {
       await apiRequest(`/api/cards/${cardId}/labels`, {
         method: assigned ? "DELETE" : "POST",
@@ -219,7 +239,7 @@ export function CardDetail({ boardId, cardId, columns, initialPosition, onClose,
       });
     } catch (requestError) {
       setAssignedLabels(previous);
-      onCardChange(cardId, { labels: previous });
+      onCardChange?.(cardId, { labels: previous });
       setError(requestError instanceof Error ? requestError.message : "We couldn’t update labels.");
     } finally {
       finishSaving();
@@ -238,7 +258,7 @@ export function CardDetail({ boardId, cardId, columns, initialPosition, onClose,
       setNewLabelName("");
       const next = [...assignedLabels, label];
       setAssignedLabels(next);
-      onCardChange(cardId, { labels: next });
+      onCardChange?.(cardId, { labels: next });
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "We couldn’t create that label.");
     } finally {
@@ -309,7 +329,7 @@ export function CardDetail({ boardId, cardId, columns, initialPosition, onClose,
       const created = await apiRequest<CardComment>(`/api/cards/${cardId}/comments`, { method: "POST", body: JSON.stringify({ text }) });
       const next = [...comments, created];
       setComments(next);
-      onCardChange(cardId, { commentCount: next.length });
+      onCardChange?.(cardId, { commentCount: next.length });
       setNewComment("");
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "We couldn’t add that comment.");
@@ -323,12 +343,12 @@ export function CardDetail({ boardId, cardId, columns, initialPosition, onClose,
     const previous = comments;
     const next = comments.filter((item) => item.id !== comment.id);
     setComments(next);
-    onCardChange(cardId, { commentCount: next.length });
+    onCardChange?.(cardId, { commentCount: next.length });
     try {
       await apiRequest<void>(`/api/comments/${comment.id}`, { method: "DELETE" });
     } catch (requestError) {
       setComments(previous);
-      onCardChange(cardId, { commentCount: previous.length });
+      onCardChange?.(cardId, { commentCount: previous.length });
       setError(requestError instanceof Error ? requestError.message : "We couldn’t delete that comment.");
     } finally {
       finishSaving();
@@ -339,7 +359,7 @@ export function CardDetail({ boardId, cardId, columns, initialPosition, onClose,
     event.preventDefault();
     if (!startSaving()) return;
     try {
-      await onMove(cardId, selectedList, selectedPosition - 1);
+      await onMove?.(cardId, selectedList, selectedPosition - 1);
       setCard((current) => current ? { ...current, listId: selectedList } : current);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "We couldn’t move that card.");
@@ -359,7 +379,7 @@ export function CardDetail({ boardId, cardId, columns, initialPosition, onClose,
           <span className="eyebrow" id="card-dialog-title">Card details</span>
           <div className="card-dialog-heading-actions">
             <span className="card-save-status" role="status">
-              {loading ? "" : saving || pendingTextCount ? "Saving…" : error || textErrors.title || textErrors.description ? "" : "Changes save automatically"}
+              {loading ? "" : saving || pendingTextCount ? "Saving…" : error || textErrors.title || textErrors.description ? "" : reviewOnly ? "Reviewer access" : "Changes save automatically"}
             </span>
             <button ref={closeRef} className="icon-button" type="button" onClick={() => void requestClose()} aria-label="Close card details">×</button>
           </div>
@@ -367,6 +387,9 @@ export function CardDetail({ boardId, cardId, columns, initialPosition, onClose,
         {loading ? <p className="detail-loading">Loading card details…</p> : error && !card ? <p className="app-error" role="alert">{error}</p> : card && (
           <div className="card-dialog-content">
             {error && <p className="app-error detail-error" role="alert">{error}</p>}
+            {reviewOnly ? <div className="reviewer-card-content">
+              <h2>{card.title}</h2><h3>Description</h3><p>{card.description || "No description."}</p>
+            </div> : <>
             <label className="detail-field detail-title-field" htmlFor="card-detail-title">Title</label>
             <textarea
               id="card-detail-title"
@@ -403,8 +426,13 @@ export function CardDetail({ boardId, cardId, columns, initialPosition, onClose,
             />
             {textErrors.description && <span id="card-detail-description-error" className="field-error" role="alert">{textErrors.description}</span>}
 
+            </>}
+
+            {!reviewOnly && !card.archived && <BriefCopyForm title={titleDraft.trim() || card.title} listId={card.listId} columns={columns} busy={saving || closing} onCopy={copyBrief} />}
+
             <section className="detail-section" aria-labelledby="labels-heading">
               <h3 id="labels-heading">Labels</h3>
+              {reviewOnly ? <div className="label-row">{assignedLabels.length ? assignedLabels.map((label) => <span className="reviewer-label" key={label.id}><span className="label-swatch" style={{ backgroundColor: label.color }} />{label.name}</span>) : <p>No labels.</p>}</div> : <>
               <div className="label-picker">{boardLabels.map((label) => <button type="button" disabled={saving} className={`label-toggle${assignedLabels.some((item) => item.id === label.id) ? " is-selected" : ""}`} key={label.id} onClick={() => void toggleLabel(label)}><span className="label-swatch" style={{ backgroundColor: label.color }} />{label.name}<span aria-hidden="true">{assignedLabels.some((item) => item.id === label.id) ? "✓" : "+"}</span></button>)}</div>
               <form className="new-label-form" onSubmit={(event) => void createLabel(event)}>
                 <label className="visually-hidden" htmlFor="new-label-name">New label name</label>
@@ -412,19 +440,20 @@ export function CardDetail({ boardId, cardId, columns, initialPosition, onClose,
                 <label className="visually-hidden" htmlFor="new-label-color">New label color</label>
                 <input id="new-label-color" type="color" disabled={saving} value={newLabelColor} onChange={(event) => setNewLabelColor(event.target.value)} />
                 <button className="button-small" type="submit" disabled={saving}>{saving ? "Saving…" : "Create label"}</button>
-              </form>
+              </form></>}
             </section>
 
             <section className="detail-section due-field" aria-labelledby="due-heading">
               <h3 id="due-heading">Due date</h3>
-              <div className="due-input-row"><input aria-label="Due date" type="date" disabled={saving} value={card.dueDate ? new Date(card.dueDate).toISOString().slice(0, 10) : ""} onChange={(event) => void saveCardField("dueDate", event.target.value || null)} /><button className="button-quiet" type="button" disabled={!card.dueDate || saving} onClick={() => void saveCardField("dueDate", null)}>Clear date</button></div>
+              {reviewOnly ? <p>{card.dueDate ? <time dateTime={card.dueDate.slice(0, 10)}>{new Intl.DateTimeFormat("en-US", { dateStyle: "long", timeZone: "UTC" }).format(new Date(card.dueDate))}</time> : "No due date."}</p> : <div className="due-input-row"><input aria-label="Due date" type="date" disabled={saving} value={card.dueDate ? new Date(card.dueDate).toISOString().slice(0, 10) : ""} onChange={(event) => void saveCardField("dueDate", event.target.value || null)} /><button className="button-quiet" type="button" disabled={!card.dueDate || saving} onClick={() => void saveCardField("dueDate", null)}>Clear date</button></div>}
             </section>
 
             <section className="detail-section" aria-labelledby="checklist-heading">
               <div className="detail-section-heading"><h3 id="checklist-heading">Checklist <span>{items.filter((item) => item.done).length}/{items.length}</span></h3></div>
               <div className="progress-track" role="progressbar" aria-label="Checklist progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={checklistPercent}><span style={{ width: `${checklistPercent}%` }} /></div>
+              {reviewOnly ? <ul className="reviewer-checklist">{items.map((item) => <li key={item.id}><span className="reviewer-checklist-status">{item.done ? "Done" : "Open"}</span><span>{item.text}</span></li>)}</ul> : <>
               <div className="checklist-items">{items.map((item) => <div className="checklist-row" key={item.id}><label className="checklist-checkbox"><input type="checkbox" aria-label={`Mark ${item.text} ${item.done ? "incomplete" : "complete"}`} disabled={saving} checked={item.done} onChange={(event) => void updateChecklistItem(item, { done: event.target.checked })} /></label><input className={item.done ? "checklist-done" : ""} aria-label="Checklist item" maxLength={500} disabled={saving} value={itemDrafts[item.id] ?? item.text} onChange={(event) => setItemDrafts((current) => ({ ...current, [item.id]: event.target.value }))} onBlur={() => { const text = (itemDrafts[item.id] ?? item.text).trim(); if (text && text !== item.text) void updateChecklistItem(item, { text }); else setItemDrafts((current) => { const nextDrafts = { ...current }; delete nextDrafts[item.id]; return nextDrafts; }); }} /><button className="icon-button checklist-delete" type="button" disabled={saving} aria-label={`Delete ${item.text}`} onClick={() => void deleteChecklistItem(item)}>×</button></div>)}</div>
-              <form className="detail-inline-form" onSubmit={(event) => void addChecklistItem(event)}><input aria-label="New checklist item" maxLength={500} disabled={saving} value={newItem} onChange={(event) => setNewItem(event.target.value)} placeholder="Add an item…" /><button className="button-small" type="submit" disabled={saving || !newItem.trim()}>{saving ? "Saving…" : "Add"}</button></form>
+              <form className="detail-inline-form" onSubmit={(event) => void addChecklistItem(event)}><input aria-label="New checklist item" maxLength={500} disabled={saving} value={newItem} onChange={(event) => setNewItem(event.target.value)} placeholder="Add an item…" /><button className="button-small" type="submit" disabled={saving || !newItem.trim()}>{saving ? "Saving…" : "Add"}</button></form></>}
             </section>
 
             <section className="detail-section" aria-labelledby="comments-heading">
@@ -433,12 +462,12 @@ export function CardDetail({ boardId, cardId, columns, initialPosition, onClose,
               <form className="comment-form" onSubmit={(event) => void addComment(event)}><label className="visually-hidden" htmlFor="new-card-comment">Add a comment</label><textarea id="new-card-comment" maxLength={5000} disabled={saving} value={newComment} onChange={(event) => setNewComment(event.target.value)} placeholder="Write a comment…" /><button className="button-small" type="submit" disabled={saving || !newComment.trim()}>{saving ? "Saving…" : "Add comment"}</button></form>
             </section>
 
-            {!card.archived && <section className="detail-section" aria-labelledby="move-heading">
+            {!reviewOnly && !card.archived && <section className="detail-section" aria-labelledby="move-heading">
               <h3 id="move-heading">Move to</h3>
               <form className="move-card-form" onSubmit={(event) => void moveCard(event)}><label><span>List</span><select disabled={saving} value={selectedList} onChange={(event) => { setSelectedList(event.target.value); setSelectedPosition(1); }}>{columns.map((column) => <option value={column.id} key={column.id}>{column.name}</option>)}</select></label><label><span>Position</span><select disabled={saving} value={Math.min(selectedPosition, Math.max(1, availablePositions))} onChange={(event) => setSelectedPosition(Number(event.target.value))}>{Array.from({ length: Math.max(1, availablePositions) }, (_, index) => <option value={index + 1} key={index}>{index + 1}</option>)}</select></label><button className="button-small" type="submit" disabled={saving || !selectedList}>{saving ? "Moving…" : "Move card"}</button></form>
             </section>}
 
-            <footer className="card-dialog-footer"><button className="button-quiet danger-text" type="button" disabled={card.archived || saving} onClick={() => void saveCardField("archived", true)}>{card.archived ? "Archived" : "Archive card"}</button>{failedText.current.size > 0 && !pendingTextCount && <button className="button-quiet" type="button" onClick={onClose}>Discard unsaved changes</button>}</footer>
+            {!reviewOnly && <footer className="card-dialog-footer"><button className="button-quiet danger-text" type="button" disabled={card.archived || saving} onClick={() => void saveCardField("archived", true)}>{card.archived ? "Archived" : "Archive card"}</button>{failedText.current.size > 0 && !pendingTextCount && <button className="button-quiet" type="button" onClick={onClose}>Discard unsaved changes</button>}</footer>}
           </div>
         )}
       </section>

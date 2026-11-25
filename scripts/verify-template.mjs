@@ -9,6 +9,7 @@ import { randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { chromium, expect } from '@playwright/test';
 import { Client } from 'pg';
+import { verifyEditorialExperience } from './test-editorial-experience.mjs';
 import { verifyCardExperience } from './test-card-experience.mjs';
 import { DEMO_OWNER_ID, DEMO_EMAIL, seed } from '../.neander/seed.mjs';
 
@@ -36,6 +37,7 @@ const db = new Client({ connectionString: databaseUrl });
 let browser;
 let connected = false;
 let secondUserId;
+const editorialUsers = [];
 async function ready() {
   for (let attempt = 0; attempt < 120; attempt++) {
     try { if ((await fetch(`${origin.origin}/api/health`)).ok) return; } catch {}
@@ -91,6 +93,7 @@ try {
   const drafting = lists.find(list => list.name === 'Drafting');
   const readyList = lists.find(list => list.name === 'Ready');
   await verifyCardExperience(browser, context, origin.origin, board, ideas);
+  await verifyEditorialExperience(browser, context, origin.origin, { createdUsers: editorialUsers });
   const cards = await json(await context.request.get(`${origin.origin}/api/lists/${ideas.id}/cards`));
   const card = cards[0];
   // Real pointer drag through dnd-kit, with persisted state as the postcondition.
@@ -156,7 +159,7 @@ try {
 } finally {
   if (connected) {
     // Remove only this verifier\'s fixture users; leave the disposable DB reseedable.
-    await db.query('DELETE FROM "user" WHERE id = ANY($1::text[])', [[DEMO_OWNER_ID, secondUserId].filter(Boolean)]);
+    await db.query('DELETE FROM "user" WHERE id = ANY($1::text[])', [[DEMO_OWNER_ID, secondUserId, ...editorialUsers].filter(Boolean)]);
     await db.end();
   }
   if (browser) await browser.close();

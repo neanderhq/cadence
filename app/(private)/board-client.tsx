@@ -7,7 +7,9 @@ import { CSS } from "@dnd-kit/utilities";
 import { useEffect, useId, useRef, useState, type DragEvent, type FormEvent, type ReactNode } from "react";
 import { SignOutButton } from "../sign-out-button";
 import { apiRequest } from "./client-api";
-import { CardDetail } from "./card-detail";
+import { BoardCalendar } from "./board-calendar";
+import { CardDetail, type BriefCopyResult } from "./card-detail";
+import { ReviewerAccessPanel } from "./reviewer-access-panel";
 
 export type BoardCardView = {
   id: string;
@@ -24,7 +26,7 @@ export type ArchivedCardView = BoardCardView & { listId: string; listName: strin
 export type BoardColumnView = { id: string; name: string; position: number; cards: BoardCardView[] };
 export type BoardView = { id: string; name: string; columns: BoardColumnView[] };
 
-type Props = { initialBoard: BoardView; initialArchivedCards: ArchivedCardView[] };
+type Props = { initialBoard: BoardView; initialArchivedCards: ArchivedCardView[]; initialReviewer: { id: string; name: string } | null };
 const CARD_TRIGGER_PREFIX = "open-card-";
 
 type SortableCardProps = {
@@ -98,12 +100,13 @@ function DroppableCardStack({ column, children }: { column: BoardColumnView; chi
   return <div ref={setNodeRef} className={`card-stack${isOver ? " is-drop-target" : ""}`}>{children}</div>;
 }
 
-export function BoardClient({ initialBoard, initialArchivedCards }: Props) {
+export function BoardClient({ initialBoard, initialArchivedCards, initialReviewer }: Props) {
   const board = initialBoard;
   const dndContextId = useId();
   const [columns, setColumns] = useState(initialBoard.columns);
   const [archivedCards, setArchivedCards] = useState(initialArchivedCards);
-  const [archiveView, setArchiveView] = useState(false);
+  const [view, setView] = useState<"board" | "calendar" | "archive">("board");
+  const archiveView = view === "archive";
   const [searchText, setSearchText] = useState("");
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
   const [dueFilter, setDueFilter] = useState("");
@@ -120,6 +123,8 @@ export function BoardClient({ initialBoard, initialArchivedCards }: Props) {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const boardHeadingRef = useRef<HTMLHeadingElement>(null);
+  const calendarHeadingRef = useRef<HTMLHeadingElement>(null);
+  const calendarTriggerRef = useRef<HTMLButtonElement>(null);
   const [draggingCardId, setDraggingCardId] = useState<string | null>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 7 } }),
@@ -405,9 +410,27 @@ export function BoardClient({ initialBoard, initialArchivedCards }: Props) {
     setDueFilter("");
   }
 
+  function openCopiedBrief({ card, listId, position }: BriefCopyResult) {
+    setColumns((current) => current.map((column) => {
+      const nextCards = column.cards.filter((entry) => entry.id !== card.id);
+      if (column.id === listId) nextCards.splice(position, 0, card);
+      return { ...column, cards: nextCards };
+    }));
+    clearFilters();
+    calendarTriggerRef.current = null;
+    setView("board");
+    setActiveCardId(card.id);
+  }
+
   function closeCard(cardId: string) {
     setActiveCardId(null);
     requestAnimationFrame(() => {
+      const trigger = calendarTriggerRef.current;
+      calendarTriggerRef.current = null;
+      if (view === "calendar") {
+        (trigger?.isConnected && trigger.getClientRects().length ? trigger : calendarHeadingRef.current)?.focus();
+        return;
+      }
       (document.getElementById(CARD_TRIGGER_PREFIX + cardId) ?? boardHeadingRef.current)?.focus();
     });
   }
@@ -419,12 +442,20 @@ export function BoardClient({ initialBoard, initialArchivedCards }: Props) {
     <main className="app-main board-page">
       <header className="topbar board-topbar">
         <div className="board-breadcrumbs"><Link href="/" className="brand"><span className="brand-mark">C</span><span>Cadence</span></Link><span className="breadcrumb-divider">/</span><span className="breadcrumb-current">Boards</span></div>
-        <div className="topbar-actions"><span className="private-pill"><span /> Private workspace</span><SignOutButton /></div>
+        <div className="topbar-actions"><span className="private-pill"><span /> Private workspace</span><ReviewerAccessPanel boardId={board.id} initialReviewer={initialReviewer} /><SignOutButton /></div>
       </header>
 
       <section className="board-heading">
         <div><p className="eyebrow">Marketing workspace</p><h1 ref={boardHeadingRef} tabIndex={-1}>{archiveView ? "Archive" : board.name}</h1><p>{archiveView ? "Archived cards stay here until they are restored or permanently deleted." : "Plan the work, make room for good ideas, and keep every story moving."}</p></div>
-        <div className="board-heading-actions"><span className="board-summary">{archiveView ? `${archivedCards.length} archived ${archivedCards.length === 1 ? "card" : "cards"}` : `${columns.length} ${columns.length === 1 ? "list" : "lists"} · ${matchingCardCount} matching ${matchingCardCount === 1 ? "card" : "cards"}`}</span>{!archiveView && <button className="button-primary" type="button" disabled={busy} onClick={() => setShowAddList((visible) => !visible)}>＋ Add a list</button>}<button className="button-small" type="button" onClick={() => setArchiveView((visible) => !visible)}>{archiveView ? "← Back to board" : `Archive (${archivedCards.length})`}</button></div>
+        <div className="board-heading-actions">
+          {view !== "calendar" && <span className="board-summary">{archiveView ? `${archivedCards.length} archived ${archivedCards.length === 1 ? "card" : "cards"}` : `${columns.length} ${columns.length === 1 ? "list" : "lists"} · ${matchingCardCount} matching ${matchingCardCount === 1 ? "card" : "cards"}`}</span>}
+          {!archiveView && <div className="board-view-switch" role="group" aria-label="Board view">
+            <button className="button-quiet" type="button" aria-pressed={view === "board"} onClick={() => setView("board")}>Board</button>
+            <button className="button-quiet" type="button" aria-pressed={view === "calendar"} onClick={() => setView("calendar")}>Calendar</button>
+          </div>}
+          {view === "board" && <button className="button-primary" type="button" disabled={busy} onClick={() => setShowAddList((visible) => !visible)}>＋ Add a list</button>}
+          {view !== "calendar" && <button className="button-small" type="button" onClick={() => setView(archiveView ? "board" : "archive")}>{archiveView ? "← Back to board" : `Archive (${archivedCards.length})`}</button>}
+        </div>
       </section>
 
       {error && <p className="app-error board-error" role="alert">{error}</p>}
@@ -434,7 +465,10 @@ export function BoardClient({ initialBoard, initialArchivedCards }: Props) {
           <div className="archive-card-content"><h2>{card.title}</h2><p>{card.listName} <span>·</span> Archived {card.archivedAt ? new Intl.DateTimeFormat("en-US", { timeZone: "UTC" }).format(new Date(card.archivedAt)) : "date unavailable"}</p>{card.description && <p className="archive-description">{card.description}</p>}</div>
           <div className="archive-card-actions"><button className="button-small" type="button" disabled={busy} onClick={() => void restoreCard(card)}>{busy ? "Saving…" : "Restore"}</button><button className="button-quiet danger-text" type="button" disabled={busy} onClick={() => void permanentlyDeleteCard(card)}>Delete permanently</button></div>
         </article>)}
-      </section> : <>
+      </section> : view === "calendar" ? <BoardCalendar columns={columns} headingRef={calendarHeadingRef} onOpen={(id, trigger) => {
+        calendarTriggerRef.current = trigger;
+        setActiveCardId(id);
+      }} /> : <>
       <button className="filters-toggle" type="button" aria-expanded={filtersOpen} aria-controls="board-filters" onClick={() => setFiltersOpen((open) => !open)}>Filters{hasFilters ? ` (${selectedLabelIds.length + (dueFilter ? 1 : 0) + (normalizedSearch ? 1 : 0)})` : ""}</button>
       <section id="board-filters" className={`board-filters${filtersOpen ? " is-open" : " is-collapsed"}`} aria-label="Search and filters">
         <label className="board-search"><span>Search cards</span><input type="search" value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder="Search titles and descriptions…" /></label>
@@ -496,9 +530,9 @@ export function BoardClient({ initialBoard, initialArchivedCards }: Props) {
         </div>}
       </section>
       </>}
-      <footer className="board-footer"><span>{draggingCardId ? "Drop the card into another list or position." : "Drag a card to reorder it, or use Move to."}</span><Link href="/">← All boards</Link></footer>
+      <footer className="board-footer"><span>{view === "board" && (draggingCardId ? "Drop the card into another list or position." : "Drag a card to reorder it, or use Move to.")}</span><Link href="/">← All boards</Link></footer>
 
-      {activeCardId && <CardDetail key={activeCardId} boardId={board.id} cardId={activeCardId} columns={columns} initialPosition={activePosition} onClose={() => closeCard(activeCardId)} onCardChange={updateCardFront} onMove={moveCard} />}
+      {activeCardId && <CardDetail key={activeCardId} boardId={board.id} cardId={activeCardId} columns={columns} initialPosition={activePosition} onClose={() => closeCard(activeCardId)} onCardChange={updateCardFront} onMove={moveCard} onBriefCopied={openCopiedBrief} />}
     </main>
   );
 }

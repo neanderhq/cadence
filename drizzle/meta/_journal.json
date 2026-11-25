@@ -15,6 +15,20 @@
       "when": 1793104236269,
       "tag": "0001_blue_tag",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795602488421,
+      "tag": "0002_brief_copies",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1795602609636,
+      "tag": "0003_board_reviewers",
+      "breakpoints": true
     }
   ]
 }
